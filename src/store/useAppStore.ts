@@ -14,7 +14,8 @@ interface AppState {
   activeWebId: string | null;
   addWebView: (url: string) => void;
   removeWebView: (id: string) => void;
-  setWebUnread: (id: string, value: boolean) => void;
+  updateWebViewUrl: (id: string, newUrl: string) => void;
+  setWebViewUnread: (id: string, hasUnread: boolean) => void;
   setActiveWebId: (id: string) => void;
 
   isWidgetPanelOpen: boolean;
@@ -58,9 +59,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { webViews: newWebViews, activeWebId: newActiveWebId, activeWidget: newActiveWidget as WidgetType | null };
     });
   },
-  setWebUnread: (id: string, value: boolean) => {
+  updateWebViewUrl: (id: string, newUrl: string) => 
     set((state) => ({
-      webViews: state.webViews.map(w => w.id === id ? { ...w, hasUnread: value } : w)
+      webViews: state.webViews.map(w => 
+        w.id === id ? { ...w, url: newUrl } : w
+      )
+    })),
+  setWebViewUnread: (id: string, hasUnread: boolean) => {
+    set((state) => ({
+      webViews: state.webViews.map(w => w.id === id ? { ...w, hasUnread: hasUnread } : w)
     }));
   },
   setActiveWebId: (id: string) => {

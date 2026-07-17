@@ -1,19 +1,36 @@
 import { useState, useRef, useEffect } from 'react';
 import { TerminalCanvas } from './components/TerminalCanvas';
 import { useAppStore } from './store/useAppStore';
-import { WebWidget } from './components/Widgets/WebWidget';
+import { listen } from '@tauri-apps/api/event';
+import { NativeWebview } from './components/Widgets/NativeWebview';
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
 
 function App() {
   const { 
-    activeWidget, hasUnread, 
-    webViews, activeWebId,
-    setActiveWidget, closeWidget, setHasUnread 
+    activeWidget, 
+    setActiveWidget, 
+    closeWidget, 
+    hasUnread,
+    setHasUnread,
+    webViews, 
+    activeWebId
   } = useAppStore();
+  
   const [terminalWidth, setTerminalWidth] = useState(66.66); // percentage
   const isDragging = useRef(false);
   const [isDraggingState, setIsDraggingState] = useState(false);
+
+  useEffect(() => {
+    const unlisten = listen('webview-url-changed', (event) => {
+      const payload = event.payload as { id: string, url: string };
+      useAppStore.getState().updateWebViewUrl(payload.id, payload.url);
+    });
+    
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -136,7 +153,7 @@ function App() {
           className="h-full shrink-0"
         >
           {activeWidget.type === 'webview' && activeWebId ? (
-            <WebWidget url={webViews.find(w => w.id === activeWebId)?.url || ''} />
+            <NativeWebview id={activeWebId} url={webViews.find(w => w.id === activeWebId)?.url || ''} />
           ) : activeWidget.type === 'web_manager' ? (
             <WebManagerWidget />
           ) : (

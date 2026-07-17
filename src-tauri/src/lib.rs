@@ -22,7 +22,15 @@ pub fn run() {
             ipc::spawn_pty,
             ipc::write_to_pty,
             ipc::resize_pty,
-            ipc::inject_command
+            ipc::inject_command,
+            ipc::create_webview,
+            ipc::update_webview,
+            ipc::destroy_webview,
+            ipc::hide_webview,
+            ipc::webview_back,
+            ipc::webview_forward,
+            ipc::webview_reload,
+            ipc::webview_open_devtools
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

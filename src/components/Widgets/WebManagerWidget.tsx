@@ -1,5 +1,35 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import { invoke } from '@tauri-apps/api/core';
+
+function Favicon({ url, active }: { url: string, active: boolean }) {
+  const [error, setError] = useState(false);
+  let domain = '';
+  try {
+    domain = new URL(url).hostname;
+  } catch (e) {
+    // ignore invalid URLs
+  }
+
+  if (error || !domain) {
+    return (
+      <svg className={`transition-colors ${active ? 'text-soma-accent' : 'text-soma-text-muted'}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>
+    );
+  }
+
+  return (
+    <img 
+      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`} 
+      alt="favicon" 
+      className="w-4 h-4 rounded-sm object-contain"
+      onError={() => setError(true)}
+    />
+  );
+}
 
 export function WebManagerWidget() {
   const { webViews, activeWebId, addWebView, removeWebView, setActiveWebId, closeWidget } = useAppStore();
@@ -10,6 +40,11 @@ export function WebManagerWidget() {
       addWebView(newUrl);
       setNewUrl('');
     }
+  };
+
+  const handleDelete = (id: string) => {
+    invoke('destroy_webview', { id }).catch(console.error);
+    removeWebView(id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -26,7 +61,10 @@ export function WebManagerWidget() {
           value={newUrl} 
           onChange={(e) => setNewUrl(e.target.value)} 
           onKeyDown={handleKeyDown} 
-          placeholder="https://example.com" 
+          placeholder="https://example.com"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           className="hidden @[250px]:block flex-1 bg-soma-bg text-soma-text border border-soma-border rounded-md px-3 py-1.5 outline-none focus:border-soma-accent text-sm min-w-0 shadow-inner" 
         />
         <button 
@@ -60,11 +98,7 @@ export function WebManagerWidget() {
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="relative shrink-0 flex items-center justify-center">
-                    <svg className={`transition-colors ${activeWebId === view.id ? 'text-soma-accent' : 'text-soma-text-muted'}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="2" y1="12" x2="22" y2="12"></line>
-                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                    </svg>
+                    <Favicon url={view.url} active={activeWebId === view.id} />
                     {view.hasUnread && (
                       <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span>
                     )}
@@ -76,7 +110,7 @@ export function WebManagerWidget() {
                 <button 
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    removeWebView(view.id); 
+                    handleDelete(view.id); 
                   }} 
                   className="text-soma-text-muted hover:text-red-400 p-1.5 rounded transition-colors shrink-0"
                   title="Close session"
