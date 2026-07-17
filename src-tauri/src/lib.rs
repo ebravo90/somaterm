@@ -21,7 +21,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ipc::spawn_pty,
             ipc::write_to_pty,
-            ipc::resize_pty
+            ipc::resize_pty,
+            ipc::inject_command
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

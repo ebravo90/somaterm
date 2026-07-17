@@ -28,6 +28,13 @@ pub fn write_to_pty(data: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(
 }
 
 #[tauri::command]
+pub fn inject_command(command: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+    PermissionGate::validate_and_route(&command)?;
+    let pty_manager = pty.lock().unwrap();
+    pty_manager.write(format!("{}\n", command))
+}
+
+#[tauri::command]
 pub fn resize_pty(rows: u16, cols: u16, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
     let pty_manager = pty.lock().unwrap();
     pty_manager.resize(rows, cols)

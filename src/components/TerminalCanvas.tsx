@@ -125,13 +125,6 @@ export function TerminalCanvas() {
         backgroundColor: '#000000',
       }}
     >
-      {/* Invisible drag region for macOS frameless window */}
-      <div 
-        data-tauri-drag-region="true"
-        className="w-full h-[36px] shrink-0 z-10"
-        style={{ cursor: 'default' }}
-      />
-      
       {/* Terminal Container */}
       <div
         ref={terminalRef}
