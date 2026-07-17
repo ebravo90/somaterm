@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Default Assets and Icons
+public/*.svg
+src/assets/*.svg
+src/assets/*.png
+src-tauri/icons/
