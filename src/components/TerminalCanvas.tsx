@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import { invoke } from '@tauri-apps/api/core';
+import { useAppStore } from '../store/useAppStore';
 import { listen } from '@tauri-apps/api/event';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 
@@ -48,6 +50,13 @@ export function TerminalCanvas() {
 
     fitAddon.current = new FitAddon();
     term.current.loadAddon(fitAddon.current);
+
+    const setActiveWidget = useAppStore.getState().setActiveWidget;
+    const webLinksAddon = new WebLinksAddon((event, uri) => {
+      event.preventDefault();
+      setActiveWidget({ type: 'webview', url: uri });
+    });
+    term.current.loadAddon(webLinksAddon);
 
     term.current.open(terminalRef.current);
     fitAddon.current.fit();
