@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-soma-bg: #000000;
+  --color-soma-panel: #18181b;
+  --color-soma-border: #27272a;
+  --color-soma-accent: #3b82f6;
+  --color-soma-text: #f4f4f5;
+  --color-soma-text-muted: #a1a1aa;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #000000;
+  color: #f4f4f5;
+  overflow: hidden;
+}
+
+#root > div {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Force override xterm default viewport */
+.xterm .xterm-viewport::-webkit-scrollbar {
+  width: 8px !important;
+}
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 4px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
