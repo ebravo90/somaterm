@@ -3,10 +3,14 @@ import { TerminalCanvas } from './components/TerminalCanvas';
 import { useAppStore } from './store/useAppStore';
 import { WebWidget } from './components/Widgets/WebWidget';
 import { AgentWidget } from './components/Widgets/AgentWidget';
+import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
 
 function App() {
-  const activeWidget = useAppStore(state => state.activeWidget);
-  const hasUnread = useAppStore(state => state.hasUnread);
+  const { 
+    activeWidget, hasUnread, 
+    webViews, activeWebId,
+    setActiveWidget, closeWidget, setHasUnread 
+  } = useAppStore();
   const [terminalWidth, setTerminalWidth] = useState(66.66); // percentage
   const isDragging = useRef(false);
   const [isDraggingState, setIsDraggingState] = useState(false);
@@ -24,7 +28,7 @@ function App() {
       }
       
       const newWidth = (e.clientX / window.innerWidth) * 100;
-      if (newWidth >= 20 && newWidth <= 90) {
+      if (newWidth >= 20 && newWidth <= 95) {
         setTerminalWidth(newWidth);
       }
     };
@@ -48,22 +52,22 @@ function App() {
         style={{ width: activeWidget ? `${terminalWidth}%` : '100%' }}
         className="h-full shrink-0 relative"
       >
-        {/* Floating Agent Toggle */}
-        <div className="absolute top-4 right-4 z-[100] transition-opacity duration-300">
+        {/* Floating Dock */}
+        <div className="absolute top-4 right-4 z-[100] flex flex-col gap-3">
+          {/* Agent Toggle */}
           <button 
             onClick={() => {
-              const store = useAppStore.getState();
-              if (store.activeWidget?.type === 'agent') {
-                store.closeWidget();
+              if (activeWidget?.type === 'agent') {
+                closeWidget();
               } else {
-                store.setActiveWidget({ type: 'agent' });
-                store.setHasUnread(false);
+                setActiveWidget({ type: 'agent' });
+                setHasUnread(false);
               }
             }}
-            className={`p-2 rounded-md transition-colors shadow-lg cursor-pointer bg-blue-600/30 hover:bg-blue-600/60 backdrop-blur-md text-blue-100 relative ${
+            className={`p-2 rounded-md transition-all cursor-pointer relative ${
               activeWidget?.type === 'agent' 
-                ? 'ring-2 ring-blue-400/50' 
-                : ''
+                ? 'bg-white/5 backdrop-blur-[2px] text-blue-300 border border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]' 
+                : 'bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
             }`}
             title="Toggle AI Agent"
           >
@@ -72,6 +76,37 @@ function App() {
             )}
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path>
+            </svg>
+          </button>
+
+          {/* Web Manager Toggle */}
+          <button
+            onClick={() => {
+              if (activeWidget?.type === 'web_manager') {
+                closeWidget();
+              } else {
+                setActiveWidget({ type: 'web_manager' });
+              }
+            }}
+            className={`p-2 rounded-md transition-all cursor-pointer relative ${
+              activeWidget?.type === 'web_manager'
+                ? 'bg-white/5 backdrop-blur-[2px] text-blue-300 border border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]' 
+                : 'bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
+            }`}
+            title="Web Manager"
+          >
+            {webViews.some(w => w.hasUnread) && (
+              <span className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-2 h-2 bg-red-500 rounded-full animate-pulse border-2 border-soma-bg" />
+            )}
+            {webViews.length > 0 && activeWidget?.type !== 'web_manager' && (
+              <span className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2 bg-blue-500 text-[10px] text-white font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-soma-bg">
+                {webViews.length}
+              </span>
+            )}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
             </svg>
           </button>
         </div>
@@ -86,6 +121,9 @@ function App() {
             setIsDraggingState(true);
             document.body.style.cursor = 'col-resize';
           }}
+          onDoubleClick={() => {
+            setTerminalWidth(66.66);
+          }}
         />
       )}
       
@@ -97,8 +135,10 @@ function App() {
           }}
           className="h-full shrink-0"
         >
-          {activeWidget.type === 'webview' ? (
-            <WebWidget url={activeWidget.url} />
+          {activeWidget.type === 'webview' && activeWebId ? (
+            <WebWidget url={webViews.find(w => w.id === activeWebId)?.url || ''} />
+          ) : activeWidget.type === 'web_manager' ? (
+            <WebManagerWidget />
           ) : (
             <AgentWidget />
           )}

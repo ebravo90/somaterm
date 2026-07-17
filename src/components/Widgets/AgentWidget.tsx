@@ -69,6 +69,7 @@ export function AgentWidget() {
       const store = useAppStore.getState();
       if (store.activeWidget?.type !== 'agent') {
         store.setHasUnread(true);
+        new Audio('/ping.mp3').play().catch(() => {});
       }
     } catch (error) {
       addChatMessage({ role: 'assistant', content: `Error: ${error}` });
@@ -109,10 +110,10 @@ export function AgentWidget() {
   };
 
   return (
-    <div className="w-full h-full flex flex-col bg-soma-panel">
+    <div className="@container w-full h-full flex flex-col bg-soma-panel">
       {/* Header */}
-      <div className="h-10 flex items-center justify-between px-4 border-b border-soma-border shrink-0">
-        <div className="flex gap-4">
+      <div className="h-10 flex items-center justify-center @[250px]:justify-between px-4 border-b border-soma-border shrink-0">
+        <div className="hidden @[250px]:flex gap-4">
           <button 
             onClick={() => setTab('chat')} 
             className={`text-sm font-medium transition-colors cursor-pointer ${tab === 'chat' ? 'text-soma-text' : 'text-soma-text-muted hover:text-soma-text'}`}
@@ -144,13 +145,13 @@ export function AgentWidget() {
           <div className="flex flex-col h-full">
             <div className="grow overflow-y-auto p-4 space-y-4">
               {chatHistory.length === 0 && (
-                <div className="text-center text-soma-text-muted mt-10">
+                <div className="hidden @[250px]:block text-center text-soma-text-muted mt-10">
                   <p>Send a message to start interacting with the agent.</p>
                 </div>
               )}
               {chatHistory.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`max-w-[90%] p-3 rounded-lg ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
+                  <div className={`max-w-[90%] p-3 rounded-lg break-words overflow-hidden ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
                     {renderMessageContent(msg.content)}
                   </div>
                   {msg.meta && (

@@ -51,10 +51,10 @@ export function TerminalCanvas() {
     fitAddon.current = new FitAddon();
     term.current.loadAddon(fitAddon.current);
 
-    const setActiveWidget = useAppStore.getState().setActiveWidget;
+    const addWebView = useAppStore.getState().addWebView;
     const webLinksAddon = new WebLinksAddon((event, uri) => {
       event.preventDefault();
-      setActiveWidget({ type: 'webview', url: uri });
+      addWebView(uri);
     });
     term.current.loadAddon(webLinksAddon);
 
