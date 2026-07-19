@@ -69,12 +69,28 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .devtools(true)
         .on_page_load(|webview, payload| {
-            let id = webview.label().to_string();
-            let _ = webview.emit("webview-url-changed", UrlChangedPayload {
-                id,
-                url: payload.url().to_string(),
-            });
+            let url_str = payload.url().to_string();
+            if url_str != "about:blank" {
+                let id = webview.label().to_string();
+                let _ = webview.app_handle().emit("webview-url-changed", UrlChangedPayload {
+                    id: id.clone(),
+                    url: url_str,
+                });
+            }
         });
+        
+    let id_clone = id.clone();
+    let app_handle = window.app_handle().clone();
+    let builder = builder.on_navigation(move |url| {
+        let url_str = url.to_string();
+        if url_str != "about:blank" {
+            let _ = app_handle.emit("webview-url-changed", UrlChangedPayload {
+                id: id_clone.clone(),
+                url: url_str,
+            });
+        }
+        true
+    });
     
     window.add_child(
         builder,

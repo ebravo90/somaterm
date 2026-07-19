@@ -50,13 +50,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeWebView: (id: string) => {
     set((state) => {
       const newWebViews = state.webViews.filter(w => w.id !== id);
-      const newActiveWebId = state.activeWebId === id 
-        ? (newWebViews.length > 0 ? newWebViews[newWebViews.length - 1].id : null) 
-        : state.activeWebId;
-      const newActiveWidget = state.activeWidget?.type === 'web_manager' 
-        ? state.activeWidget 
-        : (newActiveWebId ? { type: 'webview' } : (state.activeWidget?.type === 'webview' ? null : state.activeWidget));
-      return { webViews: newWebViews, activeWebId: newActiveWebId, activeWidget: newActiveWidget as WidgetType | null };
+      
+      let newActiveWebId = state.activeWebId;
+      let newActiveWidget = state.activeWidget;
+
+      if (state.activeWebId === id) {
+        newActiveWebId = null;
+        if (state.activeWidget?.type === 'webview') {
+          newActiveWidget = { type: 'web_manager' };
+        }
+      }
+
+      return { 
+        webViews: newWebViews, 
+        activeWebId: newActiveWebId, 
+        activeWidget: newActiveWidget 
+      };
     });
   },
   updateWebViewUrl: (id: string, newUrl: string) => 

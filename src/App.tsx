@@ -24,7 +24,9 @@ function App() {
   useEffect(() => {
     const unlisten = listen('webview-url-changed', (event) => {
       const payload = event.payload as { id: string, url: string };
-      useAppStore.getState().updateWebViewUrl(payload.id, payload.url);
+      if (!payload.url.startsWith('about:blank')) {
+        useAppStore.getState().updateWebViewUrl(payload.id, payload.url);
+      }
     });
     
     return () => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { useAppStore } from '../../store/useAppStore';
 
 interface NativeWebviewProps {
   id: string;
@@ -11,6 +12,7 @@ const createdWebViews = new Set<string>();
 export function NativeWebview({ id, url }: NativeWebviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(false);
+  const removeWebView = useAppStore(state => state.removeWebView);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -88,30 +90,43 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
   }, [id]);
 
   return (
-    <div className="flex flex-col h-full w-full">
+    <div className="@container flex flex-col h-full w-full">
       <div className="h-10 shrink-0 bg-transparent" />
       <div ref={containerRef} className="flex-1 bg-transparent w-full" />
       <div className="h-10 flex items-center justify-center gap-6 border-t border-white/10 bg-transparent shrink-0">
-        <button onClick={() => invoke('webview_back', { id })} className="text-gray-400 hover:text-white transition-colors" title="Back">
+        <button onClick={() => invoke('webview_back', { id })} className="hidden @[250px]:block text-gray-400 hover:text-white transition-colors" title="Back">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
-        <button onClick={() => invoke('webview_forward', { id })} className="text-gray-400 hover:text-white transition-colors" title="Forward">
+        <button onClick={() => invoke('webview_forward', { id })} className="hidden @[250px]:block text-gray-400 hover:text-white transition-colors" title="Forward">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
-        <button onClick={() => invoke('webview_reload', { id })} className="text-gray-400 hover:text-white transition-colors" title="Reload">
+        <button onClick={() => invoke('webview_reload', { id })} className="hidden @[250px]:block text-gray-400 hover:text-white transition-colors" title="Reload">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="23 4 23 10 17 10"></polyline>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
           </svg>
         </button>
-        <button onClick={() => invoke('webview_open_devtools', { id })} className="text-gray-400 hover:text-white transition-colors" title="Developer Tools">
+        <button onClick={() => invoke('webview_open_devtools', { id })} className="hidden @[250px]:block text-gray-400 hover:text-white transition-colors" title="Developer Tools">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="4 17 10 11 4 5"></polyline>
             <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+        </button>
+        <button 
+          onClick={() => {
+            invoke('destroy_webview', { id }).catch(console.error);
+            removeWebView(id);
+          }} 
+          className="text-gray-400 hover:text-red-400 transition-colors" 
+          title="Close session"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
       </div>
