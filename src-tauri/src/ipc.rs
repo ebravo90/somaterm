@@ -68,9 +68,39 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
     let builder = tauri::WebviewBuilder::new(&id, tauri::WebviewUrl::External(url_parsed))
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .devtools(true)
+        .initialization_script(r#"
+            window.__SOMATERM_CHECK_MEDIA__ = function() {
+                const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
+                const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
+                const isPlaying = isMediaSessionPlaying || hasActiveTags;
+                if (!isPlaying) {
+                    window.location.replace('about:blank?hibernate=true');
+                }
+            };
+            
+            // Continuous audio state emitter
+            (function() {
+                let iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+                
+                let audioHistory = [false, false, false, false, false];
+                setInterval(() => {
+                    const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
+                    const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
+                    
+                    audioHistory.shift();
+                    audioHistory.push(isMediaSessionPlaying || hasActiveTags);
+                    
+                    const isPlaying = audioHistory.some(Boolean);
+                    const currentUrl = window.location.href;
+                    iframe.src = 'about:blank?heartbeat=1&playing=' + isPlaying + '&url=' + encodeURIComponent(currentUrl) + '&r=' + Math.random();
+                }, 2000);
+            })();
+        "#)
         .on_page_load(|webview, payload| {
             let url_str = payload.url().to_string();
-            if url_str != "about:blank" {
+            if url_str != "about:blank" && !url_str.starts_with("about:blank?") {
                 let id = webview.label().to_string();
                 let _ = webview.app_handle().emit("webview-url-changed", UrlChangedPayload {
                     id: id.clone(),
@@ -83,6 +113,36 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
     let app_handle = window.app_handle().clone();
     let builder = builder.on_navigation(move |url| {
         let url_str = url.to_string();
+        if url_str.starts_with("about:blank?hibernate=true") {
+            if let Some(webview) = app_handle.get_webview(&id_clone) {
+                let _ = webview.close();
+            }
+            let _ = app_handle.emit("webview-hibernated", id_clone.clone());
+            return false;
+        }
+        
+        if url_str.starts_with("about:blank?heartbeat=1") {
+            let playing = url_str.contains("&playing=true");
+            let mut current_url = String::new();
+            if let Some(url_part) = url_str.split("&url=").nth(1) {
+                current_url = url_part.split("&r=").next().unwrap_or("").to_string();
+            }
+            
+            #[derive(Clone, serde::Serialize)]
+            struct HeartbeatPayload {
+                id: String,
+                playing: bool,
+                url: String,
+            }
+            
+            let _ = app_handle.emit("webview_media_heartbeat", HeartbeatPayload {
+                id: id_clone.clone(),
+                playing,
+                url: current_url,
+            });
+            return false;
+        }
+        
         if url_str != "about:blank" {
             let _ = app_handle.emit("webview-url-changed", UrlChangedPayload {
                 id: id_clone.clone(),
@@ -164,6 +224,15 @@ pub fn webview_open_devtools(window: tauri::Window, id: String) -> Result<(), St
     use tauri::Manager;
     if let Some(webview) = window.get_webview(&id) {
         webview.open_devtools();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn try_hibernate_webview(window: tauri::Window, id: String) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(webview) = window.get_webview(&id) {
+        let _ = webview.eval("if (window.__SOMATERM_CHECK_MEDIA__) window.__SOMATERM_CHECK_MEDIA__()");
     }
     Ok(())
 }

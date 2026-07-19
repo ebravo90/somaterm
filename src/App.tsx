@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { TerminalCanvas } from './components/TerminalCanvas';
 import { useAppStore } from './store/useAppStore';
 import { listen } from '@tauri-apps/api/event';
-import { NativeWebview } from './components/Widgets/NativeWebview';
+import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebview';
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
 
@@ -22,15 +22,39 @@ function App() {
   const [isDraggingState, setIsDraggingState] = useState(false);
 
   useEffect(() => {
-    const unlisten = listen('webview-url-changed', (event) => {
+    const unlistenUrl = listen('webview-url-changed', (event) => {
       const payload = event.payload as { id: string, url: string };
       if (!payload.url.startsWith('about:blank')) {
         useAppStore.getState().updateWebViewUrl(payload.id, payload.url);
       }
     });
+
+    const unlistenHibernated = listen('webview-hibernated', (event) => {
+      const id = event.payload as string;
+      useAppStore.getState().setWebViewHibernated(id, true);
+      untrackWebView(id);
+    });
+
+    const unlistenHeartbeat = listen('webview_media_heartbeat', (event) => {
+      const payload = event.payload as { id: string, playing: boolean, url: string };
+      useAppStore.getState().receiveHeartbeat(payload.id, payload.playing, payload.url);
+    });
+
+    const audioTimeout = setInterval(() => {
+      const state = useAppStore.getState();
+      const now = Date.now();
+      state.webViews.forEach(view => {
+        if (view.isAudioPlaying && (now - view.lastActiveAt > 5000) && state.activeWebId !== view.id) {
+          state.setWebViewAudioStatus(view.id, false);
+        }
+      });
+    }, 5000);
     
     return () => {
-      unlisten.then(f => f());
+      unlistenUrl.then(f => f());
+      unlistenHibernated.then(f => f());
+      unlistenHeartbeat.then(f => f());
+      clearInterval(audioTimeout);
     };
   }, []);
 

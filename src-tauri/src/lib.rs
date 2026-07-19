@@ -30,7 +30,8 @@ pub fn run() {
             ipc::webview_back,
             ipc::webview_forward,
             ipc::webview_reload,
-            ipc::webview_open_devtools
+            ipc::webview_open_devtools,
+            ipc::try_hibernate_webview
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

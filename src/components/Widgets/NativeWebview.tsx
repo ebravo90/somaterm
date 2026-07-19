@@ -9,6 +9,10 @@ interface NativeWebviewProps {
 
 const createdWebViews = new Set<string>();
 
+export const untrackWebView = (id: string) => {
+  createdWebViews.delete(id);
+};
+
 export function NativeWebview({ id, url }: NativeWebviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(false);

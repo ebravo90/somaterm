@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -23,44 +23,66 @@ function Favicon({ url, active }: { url: string, active: boolean }) {
 
   return (
     <img 
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`} 
-      alt="favicon" 
-      className="w-4 h-4 rounded-sm object-contain"
+      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} 
+      alt="" 
+      className={`w-4 h-4 rounded-sm transition-opacity ${active ? 'opacity-100' : 'opacity-70'}`}
       onError={() => setError(true)}
     />
   );
 }
 
-export function WebManagerWidget() {
-  const { webViews, activeWebId, addWebView, removeWebView, setActiveWebId, closeWidget } = useAppStore();
+export const WebManagerWidget: React.FC = () => {
+  const { webViews, removeWebView, activeWebId, setActiveWebId, closeWidget, updateWebViewUrl, addWebView } = useAppStore();
   const [newUrl, setNewUrl] = useState('');
 
-  const handleAdd = () => {
-    const input = newUrl.trim();
-    if (input) {
-      let finalUrl = input;
-      
-      if (input.startsWith('http://') || input.startsWith('https://')) {
-        finalUrl = input;
-      } else if ((input.includes('.') && !input.includes(' ')) || input.startsWith('localhost:')) {
-        finalUrl = 'https://' + input;
-      } else {
-        finalUrl = `https://www.google.com/search?q=${encodeURIComponent(input)}`;
-      }
-
-      addWebView(finalUrl);
-      setNewUrl('');
-    }
-  };
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const state = useAppStore.getState();
+      state.webViews.forEach(view => {
+        if (view.id !== state.activeWebId && !view.isHibernated) {
+          // 5 minutes = 300,000 ms
+          if (now - view.lastActiveAt > 300000) {
+            invoke('try_hibernate_webview', { id: view.id }).catch(console.error);
+          }
+        }
+      });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDelete = (id: string) => {
-    invoke('destroy_webview', { id }).catch(console.error);
     removeWebView(id);
+    invoke('close_webview', { id }).catch(console.error);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
-      handleAdd();
+      const input = newUrl.trim();
+      if (!input) return;
+      
+      let finalUrl = input;
+      if (input.startsWith('http://') || input.startsWith('https://')) {
+        finalUrl = input;
+      } else if (input.includes('.') && !input.includes(' ') && !input.startsWith('localhost:')) {
+        finalUrl = 'https://' + input;
+      } else if (input.startsWith('localhost:')) {
+        finalUrl = 'http://' + input;
+      } else {
+        finalUrl = `https://www.google.com/search?q=${encodeURIComponent(input)}`;
+      }
+
+      if (activeWebId) {
+        invoke('update_webview', { 
+          id: activeWebId, 
+          url: finalUrl,
+          x: 0, y: 0, width: 0, height: 0
+        }).catch(console.error);
+        updateWebViewUrl(activeWebId, finalUrl);
+      } else {
+        addWebView(finalUrl);
+      }
+      setNewUrl('');
     }
   };
 
@@ -90,7 +112,7 @@ export function WebManagerWidget() {
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 p-4 grow overflow-y-auto">
+      <div className="flex flex-col gap-4 p-4 pb-8 grow overflow-y-auto">
         {webViews.length === 0 ? (
           <div className="text-soma-text-muted text-center py-8 text-sm">
             No open web sessions
@@ -100,13 +122,27 @@ export function WebManagerWidget() {
             {webViews.map(view => (
               <div 
                 key={view.id} 
-                onClick={() => setActiveWebId(view.id)}
-                className={`flex items-center justify-center @[250px]:justify-between gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
+                onClick={() => {
+                  if (view.isHibernated) {
+                    invoke('create_webview', {
+                      id: view.id,
+                      url: view.url,
+                      x: 0, y: 0, width: 0, height: 0
+                    }).catch(console.error);
+                  }
+                  setActiveWebId(view.id);
+                }}
+                className={`relative flex items-center justify-center @[250px]:justify-between gap-3 p-3 rounded-lg border transition-all cursor-pointer ${
                   activeWebId === view.id 
                     ? 'bg-soma-accent/10 border-soma-accent/50' 
                     : 'bg-soma-bg border-soma-border hover:border-soma-text-muted/30'
-                }`}
+                } ${view.isHibernated ? 'opacity-50 grayscale' : ''}`}
               >
+                {view.isHibernated && (
+                  <svg className="absolute -top-2 -left-2 text-blue-400 opacity-70" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+                  </svg>
+                )}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="relative shrink-0 flex items-center justify-center">
                     <Favicon url={view.url} active={activeWebId === view.id} />
@@ -117,6 +153,15 @@ export function WebManagerWidget() {
                   <div className="hidden @[250px]:block flex-1 truncate text-sm">
                     {view.url}
                   </div>
+                  {view.isAudioPlaying && (
+                    <div className="shrink-0 flex items-center justify-center">
+                      <svg className="text-green-400 ml-2 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </div>
+                  )}
                 </div>
                 <button 
                   onClick={(e) => { 
