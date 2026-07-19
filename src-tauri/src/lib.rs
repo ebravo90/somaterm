@@ -2,7 +2,8 @@ mod ipc;
 mod pty;
 
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, Emitter};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,6 +17,28 @@ pub fn run() {
                 )?;
             }
             app.manage(Mutex::new(pty::PtyManager::new()));
+            
+            let handle = app.handle();
+            let quit_i = MenuItem::with_id(handle, "quit", "Quit", true, Some("cmdOrControl+q"))?;
+            let settings_i = MenuItem::with_id(handle, "settings", "Settings...", true, Some("cmdOrControl+,"))?;
+            
+            let app_submenu = Submenu::with_items(handle, "Somaterm", true, &[
+                &settings_i,
+                &PredefinedMenuItem::separator(handle)?,
+                &quit_i,
+            ])?;
+            
+            let menu = Menu::with_items(handle, &[&app_submenu])?;
+            app.set_menu(menu)?;
+            
+            app.on_menu_event(move |app_handle, event| {
+                if event.id() == "settings" {
+                    let _ = app_handle.emit("toggle-settings", ());
+                } else if event.id() == "quit" {
+                    app_handle.exit(0);
+                }
+            });
+            
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

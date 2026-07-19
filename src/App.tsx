@@ -5,6 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebview';
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
+import { SettingsModal } from './components/SettingsModal';
 
 function App() {
   const { 
@@ -40,6 +41,10 @@ function App() {
       useAppStore.getState().receiveHeartbeat(payload.id, payload.playing, payload.url);
     });
 
+    const unlistenSettings = listen('toggle-settings', () => {
+      useAppStore.getState().toggleSettings();
+    });
+
     const audioTimeout = setInterval(() => {
       const state = useAppStore.getState();
       const now = Date.now();
@@ -54,6 +59,7 @@ function App() {
       unlistenUrl.then(f => f());
       unlistenHibernated.then(f => f());
       unlistenHeartbeat.then(f => f());
+      unlistenSettings.then(f => f());
       clearInterval(audioTimeout);
     };
   }, []);
@@ -187,6 +193,9 @@ function App() {
           )}
         </div>
       )}
+      {/* Settings Modal overlay */}
+      <SettingsModal />
+
     </div>
   );
 }

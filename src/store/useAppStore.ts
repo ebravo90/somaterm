@@ -29,6 +29,11 @@ interface AppState {
   clearChatHistory: () => void;
   hasUnread: boolean;
   setHasUnread: (value: boolean) => void;
+
+  isSettingsOpen: boolean;
+  toggleSettings: () => void;
+  isDebugModeEnabled: boolean;
+  setDebugMode: (enabled: boolean) => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -178,5 +183,10 @@ export const useAppStore = create<AppState>((set) => ({
   addChatMessage: (message) => set((state) => ({ chatHistory: [...state.chatHistory, message] })),
   clearChatHistory: () => set({ chatHistory: [] }),
   hasUnread: false,
-  setHasUnread: (value) => set({ hasUnread: value })
+  setHasUnread: (value) => set({ hasUnread: value }),
+
+  isSettingsOpen: false,
+  toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen })),
+  isDebugModeEnabled: false,
+  setDebugMode: (enabled) => set({ isDebugModeEnabled: enabled })
 }));
