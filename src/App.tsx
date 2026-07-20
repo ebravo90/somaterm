@@ -40,20 +40,32 @@ function App() {
 
     const unlistenHibernated = listen('webview-hibernated', (event) => {
       const id = event.payload as string;
-      useAppStore.getState().setWebViewHibernated(id, true);
+      const store = useAppStore.getState();
+      store.setWebViewHibernated(id, true);
+      store.addLog({
+        level: 'SYSTEM',
+        source: 'WebManager',
+        message: `Tab ${id} hibernated due to inactivity.`
+      });
       untrackWebView(id);
     });
 
     const unlistenHeartbeat = listen('webview_media_heartbeat', (event) => {
       const payload = event.payload as { id: string, playing: boolean, url: string };
       const store = useAppStore.getState();
+      
+      const webview = store.webViews.find(w => w.id === payload.id);
+      const previousState = webview ? webview.isAudioPlaying : null;
+      
       store.receiveHeartbeat(payload.id, payload.playing, payload.url);
       
-      store.addLog({
-        level: 'MEDIA',
-        source: 'WebManager',
-        message: `Heartbeat from tab ${payload.id}: playing=${payload.playing}, url=${payload.url}`
-      });
+      if (previousState === undefined || previousState !== payload.playing) {
+        store.addLog({
+          level: 'MEDIA',
+          source: 'WebManager',
+          message: `Heartbeat from tab ${payload.id}: playing=${payload.playing}, url=${payload.url}`
+        });
+      }
     });
 
     const unlistenSettings = listen('toggle-settings', () => {

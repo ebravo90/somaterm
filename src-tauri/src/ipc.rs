@@ -70,7 +70,6 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
         .devtools(true)
         .initialization_script(&r#"
             window.__SOMATERM_SILENCE_STRIKES__ = 0;
-            window.__SOMATERM_LAST_STATE__ = null;
             
             window.__SOMATERM_CHECK_MEDIA__ = function() {
                 if (window.__SOMATERM_SILENCE_STRIKES__ >= 150) {
@@ -90,17 +89,14 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                     window.__SOMATERM_SILENCE_STRIKES__ += 1;
                 }
                 
-                if (isPlaying !== window.__SOMATERM_LAST_STATE__) {
-                    window.__SOMATERM_LAST_STATE__ = isPlaying;
-                    let iframe = document.getElementById('soma-telemetry');
-                    if (!iframe) {
-                        iframe = document.createElement('iframe');
-                        iframe.id = 'soma-telemetry';
-                        iframe.style.display = 'none';
-                        document.body.appendChild(iframe);
-                    }
-                    iframe.src = `about:blank?heartbeat=true&playing=${isPlaying}&url=${encodeURIComponent(window.location.href)}&t=${Date.now()}`;
+                let iframe = document.getElementById('soma-telemetry');
+                if (!iframe) {
+                    iframe = document.createElement('iframe');
+                    iframe.id = 'soma-telemetry';
+                    iframe.style.display = 'none';
+                    document.body.appendChild(iframe);
                 }
+                iframe.src = `about:blank?heartbeat=true&playing=${isPlaying}&url=${encodeURIComponent(window.location.href)}&t=${Date.now()}`;
             }, 2000);
         "#.replace("__TAB_ID__", &id))
         .on_page_load(|webview, payload| {

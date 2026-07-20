@@ -4,8 +4,8 @@ import { invoke } from '@tauri-apps/api/core';
 export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' };
 
 export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string };
-export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying: boolean, lastActiveAt: number };
-export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' | 'ERROR' | 'MEDIA', source: string, message: string };
+export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying?: boolean, lastActiveAt: number };
+export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' | 'ERROR' | 'MEDIA' | 'SYSTEM', source: string, message: string };
 
 interface AppState {
   activeWidget: WidgetType | null;
@@ -98,7 +98,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         url: finalUrl, 
         hasUnread: false, 
         isHibernated: false, 
-        isAudioPlaying: false,
         lastActiveAt: Date.now() 
       }],
       activeWebId: id,
@@ -167,6 +166,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
   setActiveWebId: (id: string) => {
+    const state = get();
+    const targetWebView = state.webViews.find(w => w.id === id);
+    if (targetWebView?.isHibernated) {
+      state.addLog({
+        level: 'SYSTEM',
+        source: 'WebManager',
+        message: `Tab ${id} revived.`
+      });
+    }
+
     set((state) => ({
       webViews: state.webViews.map(w => {
         if (w.id === state.activeWebId && w.id !== id) {
