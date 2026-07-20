@@ -25,6 +25,12 @@ function App() {
   const [isDraggingState, setIsDraggingState] = useState(false);
 
   useEffect(() => {
+    useAppStore.getState().addLog({
+      level: 'INFO',
+      source: 'UX',
+      message: 'Somaterm UI initialized successfully.'
+    });
+
     const unlistenUrl = listen('webview-url-changed', (event) => {
       const payload = event.payload as { id: string, url: string };
       if (!payload.url.startsWith('about:blank')) {
@@ -40,7 +46,14 @@ function App() {
 
     const unlistenHeartbeat = listen('webview_media_heartbeat', (event) => {
       const payload = event.payload as { id: string, playing: boolean, url: string };
-      useAppStore.getState().receiveHeartbeat(payload.id, payload.playing, payload.url);
+      const store = useAppStore.getState();
+      store.receiveHeartbeat(payload.id, payload.playing, payload.url);
+      
+      store.addLog({
+        level: 'MEDIA',
+        source: 'WebManager',
+        message: `Heartbeat from tab ${payload.id}: playing=${payload.playing}, url=${payload.url}`
+      });
     });
 
     const unlistenSettings = listen('toggle-settings', () => {
@@ -49,7 +62,11 @@ function App() {
 
     const unlistenLog = listen('new-log', (event) => {
       const payload = event.payload as { timestamp: string, level: string, source: string, message: string };
-      useAppStore.getState().addDebugLog(payload);
+      useAppStore.getState().addLog({
+        level: payload.level as any,
+        source: payload.source,
+        message: payload.message
+      });
     });
 
     const audioTimeout = setInterval(() => {
@@ -116,8 +133,10 @@ function App() {
           <button 
             onClick={() => {
               if (activeWidget?.type === 'agent') {
+                useAppStore.getState().addLog({ level: 'INFO', source: 'UX', message: 'Layout updated: Full Terminal mode' });
                 closeWidget();
               } else {
+                useAppStore.getState().addLog({ level: 'INFO', source: 'UX', message: 'Widget activated: AI Agent' });
                 setActiveWidget({ type: 'agent' });
                 setHasUnread(false);
               }
@@ -141,8 +160,10 @@ function App() {
           <button
             onClick={() => {
               if (activeWidget?.type === 'web_manager') {
+                useAppStore.getState().addLog({ level: 'INFO', source: 'UX', message: 'Layout updated: Full Terminal mode' });
                 closeWidget();
               } else {
+                useAppStore.getState().addLog({ level: 'INFO', source: 'UX', message: 'Widget activated: Web Manager' });
                 setActiveWidget({ type: 'web_manager' });
               }
             }}

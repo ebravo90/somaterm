@@ -1,10 +1,11 @@
 import { create } from 'zustand';
+import { invoke } from '@tauri-apps/api/core';
 
 export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' };
 
 export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string };
 export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying: boolean, lastActiveAt: number };
-export type LogEntry = { timestamp: string, level: string, source: string, message: string };
+export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' | 'ERROR' | 'MEDIA', source: string, message: string };
 
 interface AppState {
   activeWidget: WidgetType | null;
@@ -36,8 +37,9 @@ interface AppState {
   isDebugModeEnabled: boolean;
   setDebugMode: (enabled: boolean) => void;
   debugLogs: LogEntry[];
-  addDebugLog: (log: LogEntry) => void;
-  clearDebugLogs: () => void;
+  sessionId: string;
+  addLog: (log: Omit<LogEntry, 'id' | 'timestamp'>) => void;
+  clearLogs: () => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -62,7 +64,7 @@ function normalizeUrl(rawUrl: string): string {
   }
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   activeWidget: null,
   setActiveWidget: (widget) => set((state) => {
     let newActiveWebId = state.activeWebId;
@@ -190,17 +192,38 @@ export const useAppStore = create<AppState>((set) => ({
   setHasUnread: (value) => set({ hasUnread: value }),
 
   isSettingsOpen: false,
-  toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen })),
+  toggleSettings: () => {
+    const willBeOpen = !get().isSettingsOpen;
+    get().addLog({
+      level: 'INFO',
+      source: 'UX',
+      message: willBeOpen ? 'Settings modal opened' : 'Settings modal closed'
+    });
+    set({ isSettingsOpen: willBeOpen });
+  },
   isDebugModeEnabled: false,
   setDebugMode: (enabled) => set({ isDebugModeEnabled: enabled }),
 
   debugLogs: [],
-  addDebugLog: (log) => set((state) => {
-    const newLogs = [...state.debugLogs, log];
-    if (newLogs.length > 200) {
-      newLogs.shift();
-    }
+  sessionId: Date.now().toString(),
+  addLog: (log) => set((state) => {
+    const newEntry: LogEntry = {
+      ...log,
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+      timestamp: Date.now()
+    };
+    const newLogs = [...state.debugLogs, newEntry].slice(-200);
+    
+    const date = new Date(newEntry.timestamp);
+    const hh = date.getHours().toString().padStart(2, '0');
+    const mm = date.getMinutes().toString().padStart(2, '0');
+    const ss = date.getSeconds().toString().padStart(2, '0');
+    const mmm = date.getMilliseconds().toString().padStart(3, '0');
+    const formattedString = `[${hh}:${mm}:${ss}.${mmm}] [${newEntry.level}] [${newEntry.source}] ${newEntry.message}`;
+    
+    invoke('write_debug_log', { sessionId: state.sessionId, logLine: formattedString }).catch(err => console.error("Failed to write log:", err));
+    
     return { debugLogs: newLogs };
   }),
-  clearDebugLogs: () => set({ debugLogs: [] })
+  clearLogs: () => set({ debugLogs: [], sessionId: Date.now().toString() })
 }));

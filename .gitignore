@@ -28,3 +28,4 @@ public/*.svg
 src/assets/*.svg
 src/assets/*.png
 src-tauri/icons/
+debug/

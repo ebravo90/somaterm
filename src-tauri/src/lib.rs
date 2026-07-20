@@ -9,6 +9,48 @@ use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .register_uri_scheme_protocol("somaterm", move |app, request| {
+            let uri = request.uri().to_string();
+            if uri.starts_with("somaterm://heartbeat") {
+                let mut id = String::new();
+                let mut playing = false;
+                let mut url = String::new();
+                
+                if let Ok(parsed_url) = tauri::Url::parse(&uri) {
+                    for (k, v) in parsed_url.query_pairs() {
+                        if k == "id" { id = v.to_string(); }
+                        if k == "playing" { playing = v == "true"; }
+                        if k == "url" { url = v.to_string(); }
+                    }
+                }
+                
+                #[derive(Clone, serde::Serialize)]
+                struct HeartbeatPayload {
+                    id: String,
+                    playing: bool,
+                    url: String,
+                }
+                
+                let _ = app.app_handle().emit("webview_media_heartbeat", HeartbeatPayload {
+                    id: id.clone(),
+                    playing,
+                    url: url.clone(),
+                });
+                
+                crate::logger::log_debug_event(
+                    app.app_handle(),
+                    "MEDIA",
+                    "WebManager",
+                    &format!("Heartbeat from tab {}: playing={}, url={}", id, playing, url)
+                );
+            }
+            
+            tauri::http::Response::builder()
+                .status(200)
+                .header("Access-Control-Allow-Origin", "*")
+                .body(Vec::new())
+                .unwrap()
+        })
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -55,7 +97,8 @@ pub fn run() {
             ipc::webview_forward,
             ipc::webview_reload,
             ipc::webview_open_devtools,
-            ipc::try_hibernate_webview
+            ipc::try_hibernate_webview,
+            ipc::write_debug_log
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

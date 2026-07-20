@@ -3,12 +3,12 @@ import { useAppStore } from '../store/useAppStore';
 import { Ban } from 'lucide-react';
 
 export const DebugConsole: React.FC = () => {
-  const { isDebugModeEnabled, setDebugMode, debugLogs, clearDebugLogs } = useAppStore();
+  const { isDebugModeEnabled, setDebugMode, debugLogs, clearLogs } = useAppStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'auto' });
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [debugLogs, isDebugModeEnabled]);
 
@@ -20,7 +20,7 @@ export const DebugConsole: React.FC = () => {
         <h2 className="font-semibold text-zinc-300 tracking-wider">DEBUG CONSOLE</h2>
         <div className="flex gap-3 items-center">
           <button 
-            onClick={clearDebugLogs}
+            onClick={clearLogs}
             title="Clear"
             className="text-zinc-500 hover:text-red-400 transition-colors p-1 rounded hover:bg-zinc-800"
           >
@@ -44,17 +44,22 @@ export const DebugConsole: React.FC = () => {
           <div className="text-zinc-600 italic">No logs received yet...</div>
         ) : (
           <div className="flex flex-col gap-1">
-            {debugLogs.map((log, i) => {
+            {debugLogs.map((log) => {
               let colorClass = "text-zinc-300";
               if (log.level === "WARN") colorClass = "text-yellow-400";
               else if (log.level === "ERROR") colorClass = "text-red-400";
               else if (log.level === "INFO") colorClass = "text-zinc-400";
+              else if (log.level === "MEDIA") colorClass = "text-emerald-400";
 
-              const date = new Date(parseInt(log.timestamp));
-              const timeStr = isNaN(date.getTime()) ? log.timestamp : date.toLocaleTimeString([], { hour12: false, fractionalSecondDigits: 3 });
+              const date = new Date(log.timestamp);
+              const hh = date.getHours().toString().padStart(2, '0');
+              const mm = date.getMinutes().toString().padStart(2, '0');
+              const ss = date.getSeconds().toString().padStart(2, '0');
+              const mmm = date.getMilliseconds().toString().padStart(3, '0');
+              const timeStr = `${hh}:${mm}:${ss}.${mmm}`;
 
               return (
-                <div key={i} className="flex gap-2 whitespace-pre-wrap break-all hover:bg-zinc-800/50 px-1 rounded transition-colors">
+                <div key={log.id} className="flex gap-2 whitespace-pre-wrap break-all hover:bg-zinc-800/50 px-1 rounded transition-colors">
                   <span className="text-zinc-600 shrink-0">[{timeStr}]</span>
                   <span className={`shrink-0 ${colorClass}`}>[{log.level}]</span>
                   <span className="text-blue-400 shrink-0">[{log.source}]</span>

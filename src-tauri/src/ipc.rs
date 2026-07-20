@@ -68,7 +68,7 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
     let builder = tauri::WebviewBuilder::new(&id, tauri::WebviewUrl::External(url_parsed))
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .devtools(true)
-        .initialization_script(r#"
+        .initialization_script(&r#"
             window.__SOMATERM_CHECK_MEDIA__ = function() {
                 const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
                 const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
@@ -78,26 +78,16 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                 }
             };
             
-            // Continuous audio state emitter
-            (function() {
-                let iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                document.body.appendChild(iframe);
+            // Continuous audio state emitter using Tauri IPC
+            setInterval(() => {
+                const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
+                const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
+                const isPlaying = isMediaSessionPlaying || hasActiveTags;
+                const currentUrl = encodeURIComponent(window.location.href);
                 
-                let audioHistory = [false, false, false, false, false];
-                setInterval(() => {
-                    const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
-                    const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
-                    
-                    audioHistory.shift();
-                    audioHistory.push(isMediaSessionPlaying || hasActiveTags);
-                    
-                    const isPlaying = audioHistory.some(Boolean);
-                    const currentUrl = window.location.href;
-                    iframe.src = 'about:blank?heartbeat=1&playing=' + isPlaying + '&url=' + encodeURIComponent(currentUrl) + '&r=' + Math.random();
-                }, 2000);
-            })();
-        "#)
+                fetch(`somaterm://heartbeat?id=__TAB_ID__&playing=${isPlaying}&url=${currentUrl}`, { mode: 'no-cors' }).catch(() => {});
+            }, 2000);
+        "#.replace("__TAB_ID__", &id))
         .on_page_load(|webview, payload| {
             let url_str = payload.url().to_string();
             if url_str != "about:blank" && !url_str.starts_with("about:blank?") {
@@ -120,36 +110,7 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
             let _ = app_handle.emit("webview-hibernated", id_clone.clone());
             return false;
         }
-        
-        if url_str.starts_with("about:blank?heartbeat=1") {
-            let playing = url_str.contains("&playing=true");
-            let mut current_url = String::new();
-            if let Some(url_part) = url_str.split("&url=").nth(1) {
-                current_url = url_part.split("&r=").next().unwrap_or("").to_string();
-            }
-            
-            #[derive(Clone, serde::Serialize)]
-            struct HeartbeatPayload {
-                id: String,
-                playing: bool,
-                url: String,
-            }
-            
-            let _ = app_handle.emit("webview_media_heartbeat", HeartbeatPayload {
-                id: id_clone.clone(),
-                playing,
-                url: current_url.clone(),
-            });
-            
-            crate::logger::log_debug_event(
-                &app_handle,
-                "INFO",
-                "WebManager",
-                &format!("Heartbeat from tab {}: playing={}, url={}", id_clone, playing, current_url)
-            );
-            return false;
-        }
-        
+
         if url_str != "about:blank" {
             let _ = app_handle.emit("webview-url-changed", UrlChangedPayload {
                 id: id_clone.clone(),
@@ -243,3 +204,14 @@ pub fn try_hibernate_webview(window: tauri::Window, id: String) -> Result<(), St
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn write_debug_log(session_id: String, log_line: String) -> Result<(), String> {
+    use std::io::Write;
+    let _ = std::fs::create_dir_all("../debug");
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(format!("../debug/session_{}.log", session_id)) {
+        let _ = writeln!(file, "{}", log_line);
+    }
+    Ok(())
+}
+
