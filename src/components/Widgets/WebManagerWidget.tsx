@@ -138,20 +138,19 @@ export const WebManagerWidget: React.FC = () => {
                     : 'bg-soma-bg border-soma-border hover:border-soma-text-muted/30'
                 } ${view.isHibernated ? 'opacity-50 grayscale' : ''}`}
               >
-                {view.isHibernated && (
-                  <svg className="absolute -top-2 -left-2 text-blue-400 opacity-70" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {view.isHibernated ? (
+                  <svg className="absolute -top-2 -left-2 text-blue-400 opacity-70 bg-soma-panel rounded-full p-0.5 z-10" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
                   </svg>
-                )}
-                {view.isAudioPlaying && (
-                  <div className="absolute top-1 left-7 animate-pulse">
-                    <svg className="text-emerald-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                ) : view.isAudioPlaying ? (
+                  <div className="absolute -top-2 -left-2 bg-soma-panel rounded-full p-0.5 z-10 animate-pulse flex items-center justify-center w-4 h-4">
+                    <svg className="text-emerald-400" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                       <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
                     </svg>
                   </div>
-                )}
+                ) : null}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="relative shrink-0 flex items-center justify-center">
                     <Favicon url={view.url} active={activeWebId === view.id} />

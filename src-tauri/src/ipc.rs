@@ -73,7 +73,7 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
             window.__SOMATERM_LAST_STATE__ = null;
             
             window.__SOMATERM_CHECK_MEDIA__ = function() {
-                if (window.__SOMATERM_SILENCE_STRIKES__ >= 5) {
+                if (window.__SOMATERM_SILENCE_STRIKES__ >= 150) {
                     window.location.replace('about:blank?hibernate=true');
                 }
             };
@@ -99,7 +99,7 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                         iframe.style.display = 'none';
                         document.body.appendChild(iframe);
                     }
-                    iframe.src = `about:blank?heartbeat=true&playing=${isPlaying}&t=${Date.now()}`;
+                    iframe.src = `about:blank?heartbeat=true&playing=${isPlaying}&url=${encodeURIComponent(window.location.href)}&t=${Date.now()}`;
                 }
             }, 2000);
         "#.replace("__TAB_ID__", &id))
@@ -129,6 +129,15 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
 
         if url_str.starts_with("about:blank?heartbeat=true") {
             let playing = url_str.contains("&playing=true");
+            let mut extracted_url = String::new();
+            if let Some(start) = url_str.find("&url=") {
+                let rest = &url_str[start + 5..];
+                if let Some(end) = rest.find("&t=") {
+                    if let Ok(decoded) = urlencoding::decode(&rest[..end]) {
+                        extracted_url = decoded.into_owned();
+                    }
+                }
+            }
             
             #[derive(Clone, serde::Serialize)]
             struct HeartbeatPayload {
@@ -140,15 +149,8 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
             let _ = app_handle.emit("webview_media_heartbeat", HeartbeatPayload {
                 id: id_clone.clone(),
                 playing,
-                url: String::new(), // Not needed for UI indicator
+                url: extracted_url,
             });
-            
-            crate::logger::log_debug_event(
-                &app_handle,
-                "MEDIA",
-                "WebManager",
-                &format!("Heartbeat from tab {}: playing={}", id_clone, playing)
-            );
             
             return false;
         }
