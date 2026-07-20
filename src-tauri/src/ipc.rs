@@ -69,11 +69,10 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .devtools(true)
         .initialization_script(&r#"
+            window.__SOMATERM_SILENCE_STRIKES__ = 0;
+            
             window.__SOMATERM_CHECK_MEDIA__ = function() {
-                const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
-                const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
-                const isPlaying = isMediaSessionPlaying || hasActiveTags;
-                if (!isPlaying) {
+                if (window.__SOMATERM_SILENCE_STRIKES__ >= 5) {
                     window.location.replace('about:blank?hibernate=true');
                 }
             };
@@ -83,8 +82,14 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                 const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
                 const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
                 const isPlaying = isMediaSessionPlaying || hasActiveTags;
-                const currentUrl = encodeURIComponent(window.location.href);
                 
+                if (isPlaying) {
+                    window.__SOMATERM_SILENCE_STRIKES__ = 0;
+                } else {
+                    window.__SOMATERM_SILENCE_STRIKES__ += 1;
+                }
+                
+                const currentUrl = encodeURIComponent(window.location.href);
                 fetch(`somaterm://heartbeat?id=__TAB_ID__&playing=${isPlaying}&url=${currentUrl}`, { mode: 'no-cors' }).catch(() => {});
             }, 2000);
         "#.replace("__TAB_ID__", &id))
