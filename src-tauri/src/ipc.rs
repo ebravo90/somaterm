@@ -56,7 +56,7 @@ pub fn spawn_pty(
 }
 
 #[tauri::command]
-pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y: f64, width: f64, height: f64) -> Result<(), String> {
+pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y: f64, width: f64, height: f64, height_offset: f64) -> Result<(), String> {
     use tauri::Manager;
     
     // Close existing if any
@@ -160,22 +160,30 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
         true
     });
     
-    window.add_child(
+    let adjusted_height = height + height_offset;
+    println!("[DEBUG] Rust received bounds -> X: {}, Y: {}, W: {}, H: {}, Offset: {}", x, y, width, height, height_offset);
+    
+    let webview = window.add_child(
         builder,
         tauri::LogicalPosition::new(x, y),
-        tauri::LogicalSize::new(width, height)
+        tauri::LogicalSize::new(width, adjusted_height)
     ).map_err(|e| e.to_string())?;
+    
+    let _ = webview.show();
     
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_webview(window: tauri::Window, id: String, x: f64, y: f64, width: f64, height: f64) -> Result<(), String> {
+pub fn resize_webview(window: tauri::Window, id: String, x: f64, y: f64, width: f64, height: f64, height_offset: f64) -> Result<(), String> {
     use tauri::Manager;
     if let Some(webview) = window.get_webview(&id) {
+        let adjusted_height = height + height_offset;
+        println!("[DEBUG] Rust received bounds -> X: {}, Y: {}, W: {}, H: {}, Offset: {}", x, y, width, height, height_offset);
+
         let _ = webview.set_bounds(tauri::Rect {
             position: tauri::LogicalPosition::new(x, y).into(),
-            size: tauri::LogicalSize::new(width, height).into(),
+            size: tauri::LogicalSize::new(width, adjusted_height).into(),
         });
         let _ = webview.show();
     }
@@ -241,6 +249,15 @@ pub fn try_hibernate_webview(window: tauri::Window, id: String) -> Result<(), St
     use tauri::Manager;
     if let Some(webview) = window.get_webview(&id) {
         let _ = webview.eval("if (window.__SOMATERM_CHECK_MEDIA__) window.__SOMATERM_CHECK_MEDIA__()");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn webview_navigate(window: tauri::Window, id: String, url: String) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(webview) = window.get_webview(&id) {
+        let _ = webview.eval(&format!("window.location.href = '{}'", url));
     }
     Ok(())
 }

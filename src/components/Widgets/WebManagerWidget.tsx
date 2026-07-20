@@ -73,10 +73,9 @@ export const WebManagerWidget: React.FC = () => {
       }
 
       if (activeWebId) {
-        invoke('update_webview', { 
+        invoke('webview_navigate', { 
           id: activeWebId, 
-          url: finalUrl,
-          x: 0, y: 0, width: 0, height: 0
+          url: finalUrl
         }).catch(console.error);
         updateWebViewUrl(activeWebId, finalUrl);
       } else {
@@ -123,13 +122,6 @@ export const WebManagerWidget: React.FC = () => {
               <div 
                 key={view.id} 
                 onClick={() => {
-                  if (view.isHibernated) {
-                    invoke('create_webview', {
-                      id: view.id,
-                      url: view.url,
-                      x: 0, y: 0, width: 0, height: 0
-                    }).catch(console.error);
-                  }
                   setActiveWebId(view.id);
                 }}
                 className={`relative flex items-center justify-center @[250px]:justify-between gap-3 p-3 rounded-lg border transition-all cursor-pointer ${

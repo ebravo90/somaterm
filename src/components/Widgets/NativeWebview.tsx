@@ -22,8 +22,11 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
   useEffect(() => {
 
     const syncWebview = async (rect: DOMRect) => {
+      console.log("[DEBUG] React sending bounds to Rust:", { id, x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+      if (rect.width === 0 || rect.height === 0) return;
       if (!createdWebViews.has(id)) {
         // Initial create
+        createdWebViews.add(id); // Add synchronously to prevent race conditions
         try {
           await invoke('create_webview', { 
             id, 
@@ -31,22 +34,24 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
             x: rect.x, 
             y: rect.y, 
             width: rect.width, 
-            height: rect.height 
+            height: rect.height,
+            heightOffset: 40.0
           });
-          createdWebViews.add(id);
           isMounted.current = true;
         } catch (e) {
+          createdWebViews.delete(id); // Revert on failure
           console.error("Failed to create native webview:", e);
         }
       } else {
         // Update
         try {
-          await invoke('update_webview', {
+          await invoke('resize_webview', {
             id,
             x: rect.x,
             y: rect.y,
             width: rect.width,
-            height: rect.height
+            height: rect.height,
+            heightOffset: 40.0
           });
         } catch (e) {
           console.error("Failed to update native webview:", e);
