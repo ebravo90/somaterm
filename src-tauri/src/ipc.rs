@@ -138,8 +138,15 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
             let _ = app_handle.emit("webview_media_heartbeat", HeartbeatPayload {
                 id: id_clone.clone(),
                 playing,
-                url: current_url,
+                url: current_url.clone(),
             });
+            
+            crate::logger::log_debug_event(
+                &app_handle,
+                "INFO",
+                "WebManager",
+                &format!("Heartbeat from tab {}: playing={}, url={}", id_clone, playing, current_url)
+            );
             return false;
         }
         

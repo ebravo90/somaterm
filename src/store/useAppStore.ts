@@ -4,6 +4,7 @@ export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_
 
 export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string };
 export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying: boolean, lastActiveAt: number };
+export type LogEntry = { timestamp: string, level: string, source: string, message: string };
 
 interface AppState {
   activeWidget: WidgetType | null;
@@ -34,6 +35,9 @@ interface AppState {
   toggleSettings: () => void;
   isDebugModeEnabled: boolean;
   setDebugMode: (enabled: boolean) => void;
+  debugLogs: LogEntry[];
+  addDebugLog: (log: LogEntry) => void;
+  clearDebugLogs: () => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -188,5 +192,15 @@ export const useAppStore = create<AppState>((set) => ({
   isSettingsOpen: false,
   toggleSettings: () => set((state) => ({ isSettingsOpen: !state.isSettingsOpen })),
   isDebugModeEnabled: false,
-  setDebugMode: (enabled) => set({ isDebugModeEnabled: enabled })
+  setDebugMode: (enabled) => set({ isDebugModeEnabled: enabled }),
+
+  debugLogs: [],
+  addDebugLog: (log) => set((state) => {
+    const newLogs = [...state.debugLogs, log];
+    if (newLogs.length > 200) {
+      newLogs.shift();
+    }
+    return { debugLogs: newLogs };
+  }),
+  clearDebugLogs: () => set({ debugLogs: [] })
 }));

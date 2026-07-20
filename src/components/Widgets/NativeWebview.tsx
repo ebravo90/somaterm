@@ -17,11 +17,9 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef(false);
   const removeWebView = useAppStore(state => state.removeWebView);
+  const isSettingsOpen = useAppStore(state => state.isSettingsOpen);
 
   useEffect(() => {
-    let animationFrameId: number;
-    let observer: ResizeObserver | null = null;
-    let currentRect: DOMRect | null = null;
 
     const syncWebview = async (rect: DOMRect) => {
       if (!createdWebViews.has(id)) {
@@ -56,25 +54,25 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
       }
     };
 
-    const handleResize = () => {
-      if (containerRef.current) {
-        currentRect = containerRef.current.getBoundingClientRect();
-        if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        animationFrameId = requestAnimationFrame(() => {
-          if (currentRect) syncWebview(currentRect);
-        });
-      }
-    };
+    let observer: ResizeObserver | null = null;
+    let animationFrameId: number | null = null;
 
     if (containerRef.current) {
-      observer = new ResizeObserver(() => {
-        handleResize();
+      observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) {
+          if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+          }
+          animationFrameId = requestAnimationFrame(() => {
+            syncWebview(entry.target.getBoundingClientRect());
+          });
+        }
       });
       observer.observe(containerRef.current);
-      window.addEventListener('resize', handleResize);
       
-      // Initial sync just in case observer is slow
-      handleResize();
+      // Initial sync
+      syncWebview(containerRef.current.getBoundingClientRect());
     }
 
     return () => {
@@ -84,19 +82,21 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
-      window.removeEventListener('resize', handleResize);
-      
       // Hide webview instead of destroying it so audio persists
       invoke('hide_webview', { id }).catch(console.error);
       isMounted.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, isSettingsOpen]); // Re-sync when settings toggle so it adjusts to visibility
 
   return (
-    <div className="@container flex flex-col h-full w-full">
-      <div className="h-10 shrink-0 bg-transparent" />
-      <div ref={containerRef} className="flex-1 bg-transparent w-full" />
+    <div className={`@container flex flex-col h-full w-full pt-8 ${isSettingsOpen ? 'hidden' : ''}`}>
+      <div className="flex-1 relative w-full min-h-0 bg-transparent">
+        <div 
+          ref={containerRef} 
+          className="absolute inset-0 w-full h-full" 
+        />
+      </div>
       <div className="h-10 flex items-center justify-center gap-6 border-t border-white/10 bg-transparent shrink-0">
         <button onClick={() => invoke('webview_back', { id })} className="hidden @[250px]:block text-gray-400 hover:text-white transition-colors" title="Back">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

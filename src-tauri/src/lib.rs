@@ -1,3 +1,4 @@
+pub mod logger;
 mod ipc;
 mod pty;
 

@@ -6,6 +6,7 @@ import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebvie
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
 import { SettingsModal } from './components/SettingsModal';
+import { DebugConsole } from './components/DebugConsole';
 
 function App() {
   const { 
@@ -15,7 +16,8 @@ function App() {
     hasUnread,
     setHasUnread,
     webViews, 
-    activeWebId
+    activeWebId,
+    isSettingsOpen
   } = useAppStore();
   
   const [terminalWidth, setTerminalWidth] = useState(66.66); // percentage
@@ -45,6 +47,11 @@ function App() {
       useAppStore.getState().toggleSettings();
     });
 
+    const unlistenLog = listen('new-log', (event) => {
+      const payload = event.payload as { timestamp: string, level: string, source: string, message: string };
+      useAppStore.getState().addDebugLog(payload);
+    });
+
     const audioTimeout = setInterval(() => {
       const state = useAppStore.getState();
       const now = Date.now();
@@ -60,6 +67,7 @@ function App() {
       unlistenHibernated.then(f => f());
       unlistenHeartbeat.then(f => f());
       unlistenSettings.then(f => f());
+      unlistenLog.then(f => f());
       clearInterval(audioTimeout);
     };
   }, []);
@@ -96,7 +104,8 @@ function App() {
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-soma-bg text-soma-text overflow-hidden flex flex-row relative">
+    <div className="h-screen w-screen flex flex-col overflow-hidden bg-soma-bg text-soma-text">
+      <div className={`flex-1 flex min-h-0 flex-row relative ${isSettingsOpen ? "filter blur-sm brightness-50 transition-all duration-300" : "transition-all duration-300"}`}>
       <div 
         style={{ width: activeWidget ? `${terminalWidth}%` : '100%' }}
         className="h-full shrink-0 relative"
@@ -193,8 +202,13 @@ function App() {
           )}
         </div>
       )}
+      </div>
+      
       {/* Settings Modal overlay */}
       <SettingsModal />
+
+      {/* Debug Console */}
+      <DebugConsole />
 
     </div>
   );
