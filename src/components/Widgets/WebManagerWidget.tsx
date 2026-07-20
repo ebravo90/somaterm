@@ -143,6 +143,15 @@ export const WebManagerWidget: React.FC = () => {
                     <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
                   </svg>
                 )}
+                {view.isAudioPlaying && (
+                  <div className="absolute top-1 left-7 animate-pulse">
+                    <svg className="text-emerald-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                    </svg>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="relative shrink-0 flex items-center justify-center">
                     <Favicon url={view.url} active={activeWebId === view.id} />
@@ -153,15 +162,6 @@ export const WebManagerWidget: React.FC = () => {
                   <div className="hidden @[250px]:block flex-1 truncate text-sm">
                     {view.url}
                   </div>
-                  {view.isAudioPlaying && (
-                    <div className="shrink-0 flex items-center justify-center">
-                      <svg className="text-green-400 ml-2 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                      </svg>
-                    </div>
-                  )}
                 </div>
                 <button 
                   onClick={(e) => { 

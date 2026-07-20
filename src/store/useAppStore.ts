@@ -154,7 +154,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       webViews: state.webViews.map(w => {
         if (w.id === id) {
-          const newUrl = normalizeUrl(decodeURIComponent(currentUrl));
+          const newUrl = currentUrl ? normalizeUrl(decodeURIComponent(currentUrl)) : w.url;
           return { 
             ...w, 
             isAudioPlaying: isPlaying, 

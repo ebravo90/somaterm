@@ -70,6 +70,7 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
         .devtools(true)
         .initialization_script(&r#"
             window.__SOMATERM_SILENCE_STRIKES__ = 0;
+            window.__SOMATERM_LAST_STATE__ = null;
             
             window.__SOMATERM_CHECK_MEDIA__ = function() {
                 if (window.__SOMATERM_SILENCE_STRIKES__ >= 5) {
@@ -77,7 +78,7 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                 }
             };
             
-            // Continuous audio state emitter using Tauri IPC
+            // Continuous audio state emitter using iframe navigation
             setInterval(() => {
                 const isMediaSessionPlaying = navigator.mediaSession && navigator.mediaSession.playbackState === 'playing';
                 const hasActiveTags = Array.from(document.querySelectorAll('audio, video')).some(media => !media.paused && !media.muted);
@@ -89,8 +90,17 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                     window.__SOMATERM_SILENCE_STRIKES__ += 1;
                 }
                 
-                const currentUrl = encodeURIComponent(window.location.href);
-                fetch(`somaterm://heartbeat?id=__TAB_ID__&playing=${isPlaying}&url=${currentUrl}`, { mode: 'no-cors' }).catch(() => {});
+                if (isPlaying !== window.__SOMATERM_LAST_STATE__) {
+                    window.__SOMATERM_LAST_STATE__ = isPlaying;
+                    let iframe = document.getElementById('soma-telemetry');
+                    if (!iframe) {
+                        iframe = document.createElement('iframe');
+                        iframe.id = 'soma-telemetry';
+                        iframe.style.display = 'none';
+                        document.body.appendChild(iframe);
+                    }
+                    iframe.src = `about:blank?heartbeat=true&playing=${isPlaying}&t=${Date.now()}`;
+                }
             }, 2000);
         "#.replace("__TAB_ID__", &id))
         .on_page_load(|webview, payload| {
@@ -108,6 +118,7 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
     let app_handle = window.app_handle().clone();
     let builder = builder.on_navigation(move |url| {
         let url_str = url.to_string();
+        
         if url_str.starts_with("about:blank?hibernate=true") {
             if let Some(webview) = app_handle.get_webview(&id_clone) {
                 let _ = webview.close();
@@ -116,7 +127,33 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
             return false;
         }
 
-        if url_str != "about:blank" {
+        if url_str.starts_with("about:blank?heartbeat=true") {
+            let playing = url_str.contains("&playing=true");
+            
+            #[derive(Clone, serde::Serialize)]
+            struct HeartbeatPayload {
+                id: String,
+                playing: bool,
+                url: String,
+            }
+            
+            let _ = app_handle.emit("webview_media_heartbeat", HeartbeatPayload {
+                id: id_clone.clone(),
+                playing,
+                url: String::new(), // Not needed for UI indicator
+            });
+            
+            crate::logger::log_debug_event(
+                &app_handle,
+                "MEDIA",
+                "WebManager",
+                &format!("Heartbeat from tab {}: playing={}", id_clone, playing)
+            );
+            
+            return false;
+        }
+
+        if url_str != "about:blank" && !url_str.starts_with("about:blank?") {
             let _ = app_handle.emit("webview-url-changed", UrlChangedPayload {
                 id: id_clone.clone(),
                 url: url_str,
