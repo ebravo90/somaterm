@@ -12,6 +12,15 @@ export interface TerminalSession {
 export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string };
 export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying?: boolean, lastActiveAt: number };
 export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' | 'ERROR' | 'MEDIA' | 'SYSTEM', source: string, message: string };
+export interface AgentProfile {
+  id: string;
+  displayName: string;
+  type: 'local' | 'remote';
+  endpoint: string;
+  modelName: string;
+  apiKey?: string;
+  status: 'checking' | 'online' | 'offline';
+}
 
 interface AppState {
   activeWidget: WidgetType | null;
@@ -37,6 +46,16 @@ interface AppState {
   clearChatHistory: () => void;
   hasUnread: boolean;
   setHasUnread: (value: boolean) => void;
+
+  agents: AgentProfile[];
+  selectedAgentId: string | null;
+  isHydrated: boolean;
+  setIsHydrated: (val: boolean) => void;
+  addAgent: (agent: Omit<AgentProfile, 'id' | 'status'>) => void;
+  updateAgent: (id: string, updates: Partial<AgentProfile>) => void;
+  removeAgent: (id: string) => void;
+  setSelectedAgentId: (id: string | null) => void;
+  setAgents: (agents: AgentProfile[]) => void;
 
   isSettingsOpen: boolean;
   toggleSettings: () => void;
@@ -212,6 +231,45 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearChatHistory: () => set({ chatHistory: [] }),
   hasUnread: false,
   setHasUnread: (value) => set({ hasUnread: value }),
+
+  agents: [{
+    id: 'default-local',
+    displayName: 'Local Llama 3',
+    type: 'local',
+    endpoint: 'http://localhost:11434/v1/chat/completions',
+    modelName: 'llama3',
+    status: 'checking'
+  }],
+  selectedAgentId: 'default-local',
+  setAgents: (agents) => set({ agents }),
+  isHydrated: false,
+  setIsHydrated: (val) => set({ isHydrated: val }),
+  addAgent: (agent) => set((state) => ({
+    agents: [...state.agents, { ...agent, id: `agent-${Date.now()}`, status: 'checking' }]
+  })),
+  updateAgent: (id, updates) => set((state) => ({
+    agents: state.agents.map(a => a.id === id ? { ...a, ...updates } : a)
+  })),
+  removeAgent: (id) => set((state) => {
+    let newAgents = state.agents.filter(a => a.id !== id);
+    if (newAgents.length === 0) {
+      newAgents = [{
+        id: `agent-${Date.now()}`,
+        displayName: 'New Agent',
+        type: 'local',
+        endpoint: 'http://localhost:11434/v1/chat/completions',
+        modelName: 'llama3',
+        status: 'checking'
+      }];
+    }
+    return {
+      agents: newAgents,
+      selectedAgentId: state.selectedAgentId === id 
+        ? newAgents[0].id
+        : state.selectedAgentId
+    };
+  }),
+  setSelectedAgentId: (id) => set({ selectedAgentId: id }),
 
   isSettingsOpen: false,
   toggleSettings: () => {

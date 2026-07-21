@@ -46,6 +46,17 @@ pub fn build_menu(app_handle: &tauri::AppHandle, active_terminals: &[ipc::Termin
     }
     let shell_submenu = shell_menu_builder.build()?;
 
+    // Edit Menu (Native macOS bindings)
+    let edit_submenu = Submenu::with_items(handle, "Edit", true, &[
+        &PredefinedMenuItem::undo(handle, None)?,
+        &PredefinedMenuItem::redo(handle, None)?,
+        &PredefinedMenuItem::separator(handle)?,
+        &PredefinedMenuItem::cut(handle, None)?,
+        &PredefinedMenuItem::copy(handle, None)?,
+        &PredefinedMenuItem::paste(handle, None)?,
+        &PredefinedMenuItem::select_all(handle, None)?,
+    ])?;
+
     // Browser Menu
     let toggle_web_i = MenuItem::with_id(handle, "menu-toggle-web", "Toggle Web Manager", true, Some("cmdOrControl+b"))?;
     let nav_url_i = MenuItem::with_id(handle, "menu-navigate-url", "Navigate to URL", true, Some("cmdOrControl+l"))?;
@@ -68,7 +79,7 @@ pub fn build_menu(app_handle: &tauri::AppHandle, active_terminals: &[ipc::Termin
         &docs_i,
     ])?;
     
-    Menu::with_items(handle, &[&app_submenu, &shell_submenu, &browser_submenu, &agent_submenu, &help_submenu])
+    Menu::with_items(handle, &[&app_submenu, &shell_submenu, &edit_submenu, &browser_submenu, &agent_submenu, &help_submenu])
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -122,7 +133,9 @@ pub fn run() {
             ipc::webview_open_devtools,
             ipc::try_hibernate_webview,
             ipc::write_debug_log,
-            ipc::open_logs_folder
+            ipc::open_logs_folder,
+            ipc::load_agents,
+            ipc::save_agents
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

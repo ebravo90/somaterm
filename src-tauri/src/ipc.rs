@@ -42,6 +42,81 @@ pub fn update_active_terminals_menu(
     Ok(())
 }
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AgentProfile {
+    pub id: String,
+    #[serde(rename = "displayName")]
+    pub display_name: String,
+    #[serde(rename = "type")]
+    pub agent_type: String,
+    pub endpoint: String,
+    #[serde(rename = "modelName")]
+    pub model_name: String,
+    #[serde(rename = "apiKey")]
+    pub api_key: Option<String>,
+    pub status: String,
+}
+
+#[tauri::command]
+pub fn load_agents(app_handle: tauri::AppHandle) -> Result<Vec<AgentProfile>, String> {
+    use tauri::Manager;
+    use keyring::Entry;
+
+    let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    
+    let agents_file = config_dir.join("agents.json");
+    if !agents_file.exists() {
+        return Ok(Vec::new());
+    }
+    let data = std::fs::read_to_string(agents_file).map_err(|e| e.to_string())?;
+    let mut agents: Vec<AgentProfile> = serde_json::from_str(&data).unwrap_or_else(|_| Vec::new());
+    
+    for agent in &mut agents {
+        if let Ok(entry) = Entry::new("somaterm", &format!("agent-{}", agent.id)) {
+            if let Ok(password) = entry.get_password() {
+                if !password.is_empty() {
+                    agent.api_key = Some(password);
+                }
+            }
+        }
+    }
+    
+    Ok(agents)
+}
+
+#[tauri::command]
+pub fn save_agents(mut agents: Vec<AgentProfile>, app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    use keyring::Entry;
+
+    let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+    
+    for agent in &mut agents {
+        if let Ok(entry) = Entry::new("somaterm", &format!("agent-{}", agent.id)) {
+            if let Some(key) = &agent.api_key {
+                if !key.is_empty() {
+                    let _ = entry.set_password(key);
+                } else {
+                    let _ = entry.delete_credential();
+                }
+            } else {
+                let _ = entry.delete_credential();
+            }
+        }
+        // Strip the API key so it is never saved to the JSON file
+        agent.api_key = None;
+    }
+    
+    let agents_file = config_dir.join("agents.json");
+    let json = serde_json::to_string_pretty(&agents).map_err(|e| e.to_string())?;
+    std::fs::write(agents_file, json).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn write_to_pty(id: String, data: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
     PermissionGate::validate_and_route(&data)?;
