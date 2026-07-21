@@ -263,6 +263,19 @@ pub fn webview_navigate(window: tauri::Window, id: String, url: String) -> Resul
 }
 
 #[tauri::command]
+pub fn open_logs_folder(app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    let log_dir = app_handle.path().app_log_dir().map_err(|e| e.to_string())?;
+    
+    std::process::Command::new("open")
+        .arg(log_dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+        
+    Ok(())
+}
+
+#[tauri::command]
 pub fn write_debug_log(session_id: String, log_line: String) -> Result<(), String> {
     use std::io::Write;
     let _ = std::fs::create_dir_all("../debug");

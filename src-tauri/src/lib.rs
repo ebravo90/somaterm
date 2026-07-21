@@ -57,7 +57,8 @@ pub fn run() {
             ipc::webview_navigate,
             ipc::webview_open_devtools,
             ipc::try_hibernate_webview,
-            ipc::write_debug_log
+            ipc::write_debug_log,
+            ipc::open_logs_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
