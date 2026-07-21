@@ -46,6 +46,7 @@ pub fn run() {
             ipc::spawn_pty,
             ipc::write_to_pty,
             ipc::resize_pty,
+            ipc::close_pty,
             ipc::inject_command,
             ipc::create_webview,
             ipc::resize_webview,

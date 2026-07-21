@@ -27,32 +27,39 @@ impl PermissionGate {
 }
 
 #[tauri::command]
-pub fn write_to_pty(data: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+pub fn write_to_pty(id: String, data: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
     PermissionGate::validate_and_route(&data)?;
     let pty_manager = pty.lock().unwrap();
-    pty_manager.write(data)
+    pty_manager.write(&id, data)
 }
 
 #[tauri::command]
-pub fn inject_command(command: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+pub fn inject_command(id: String, command: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
     PermissionGate::validate_and_route(&command)?;
     let pty_manager = pty.lock().unwrap();
-    pty_manager.write(format!("{}\n", command))
+    pty_manager.write(&id, format!("{}\n", command))
 }
 
 #[tauri::command]
-pub fn resize_pty(rows: u16, cols: u16, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+pub fn resize_pty(id: String, rows: u16, cols: u16, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
     let pty_manager = pty.lock().unwrap();
-    pty_manager.resize(rows, cols)
+    pty_manager.resize(&id, rows, cols)
 }
 
 #[tauri::command]
 pub fn spawn_pty(
+    id: String,
     app_handle: tauri::AppHandle,
     pty: State<'_, Mutex<PtyManager>>,
 ) -> Result<(), String> {
     let pty_manager = pty.lock().unwrap();
-    pty_manager.spawn(app_handle)
+    pty_manager.spawn(app_handle, id)
+}
+
+#[tauri::command]
+pub fn close_pty(id: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+    let pty_manager = pty.lock().unwrap();
+    pty_manager.close(&id)
 }
 
 #[tauri::command]

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { TerminalCanvas } from './components/TerminalCanvas';
+import { TerminalGrid } from './components/TerminalGrid';
 import { useAppStore } from './store/useAppStore';
 import { listen } from '@tauri-apps/api/event';
 import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebview';
@@ -201,7 +201,7 @@ function App() {
             </svg>
           </button>
         </div>
-        <TerminalCanvas />
+        <TerminalGrid />
       </div>
       
       {activeWidget && (

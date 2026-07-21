@@ -1,23 +1,28 @@
 use portable_pty::{CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 
+pub struct PtySession {
+    master: Box<dyn MasterPty + Send>,
+    writer: Box<dyn Write + Send>,
+}
+
 pub struct PtyManager {
-    master: Arc<Mutex<Option<Box<dyn MasterPty + Send>>>>,
-    writer: Arc<Mutex<Option<Box<dyn Write + Send>>>>,
+    sessions: Arc<Mutex<HashMap<String, PtySession>>>,
 }
 
 impl PtyManager {
     pub fn new() -> Self {
         Self {
-            master: Arc::new(Mutex::new(None)),
-            writer: Arc::new(Mutex::new(None)),
+            sessions: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    pub fn spawn(&self, app_handle: AppHandle) -> Result<(), String> {
-        if self.master.lock().unwrap().is_some() {
+    pub fn spawn(&self, app_handle: AppHandle, id: String) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        if sessions.contains_key(&id) {
             return Ok(());
         }
 
@@ -47,10 +52,15 @@ impl PtyManager {
             .try_clone_reader()
             .map_err(|e| e.to_string())?;
 
-        // Store master and writer
-        *self.master.lock().unwrap() = Some(pty_pair.master);
-        *self.writer.lock().unwrap() = Some(writer);
+        sessions.insert(
+            id.clone(),
+            PtySession {
+                master: pty_pair.master,
+                writer,
+            },
+        );
 
+        let id_clone = id.clone();
         // Background thread to read from PTY and emit to frontend
         std::thread::spawn(move || {
             let mut buf = [0; 8192];
@@ -58,7 +68,7 @@ impl PtyManager {
                 match reader.read(&mut buf) {
                     Ok(n) if n > 0 => {
                         let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                        let _ = app_handle.emit("pty-read", data);
+                        let _ = app_handle.emit(&format!("pty-read-{}", id_clone), data);
                     }
                     Ok(_) => break, // EOF
                     Err(_) => break, // Error or closed
@@ -69,19 +79,21 @@ impl PtyManager {
         Ok(())
     }
 
-    pub fn write(&self, data: String) -> Result<(), String> {
-        if let Some(writer) = self.writer.lock().unwrap().as_mut() {
-            writer
+    pub fn write(&self, id: &str, data: String) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        if let Some(session) = sessions.get_mut(id) {
+            session.writer
                 .write_all(data.as_bytes())
                 .map_err(|e| e.to_string())?;
-            writer.flush().map_err(|e| e.to_string())?;
+            session.writer.flush().map_err(|e| e.to_string())?;
         }
         Ok(())
     }
 
-    pub fn resize(&self, rows: u16, cols: u16) -> Result<(), String> {
-        if let Some(master) = self.master.lock().unwrap().as_ref() {
-            master
+    pub fn resize(&self, id: &str, rows: u16, cols: u16) -> Result<(), String> {
+        let sessions = self.sessions.lock().unwrap();
+        if let Some(session) = sessions.get(id) {
+            session.master
                 .resize(PtySize {
                     rows,
                     cols,
@@ -90,6 +102,12 @@ impl PtyManager {
                 })
                 .map_err(|e| e.to_string())?;
         }
+        Ok(())
+    }
+
+    pub fn close(&self, id: &str) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        sessions.remove(id); // Dropping PtySession will close the master and writer
         Ok(())
     }
 

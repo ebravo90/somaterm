@@ -3,6 +3,12 @@ import { invoke } from '@tauri-apps/api/core';
 
 export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' };
 
+export interface TerminalSession {
+  id: string;
+  name?: string;
+  activeProcess: boolean;
+}
+
 export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string };
 export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying?: boolean, lastActiveAt: number };
 export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' | 'ERROR' | 'MEDIA' | 'SYSTEM', source: string, message: string };
@@ -40,6 +46,11 @@ interface AppState {
   sessionId: string;
   addLog: (log: Omit<LogEntry, 'id' | 'timestamp'>) => void;
   clearLogs: () => void;
+
+  terminals: TerminalSession[];
+  addTerminal: () => void;
+  renameTerminal: (id: string, name: string) => void;
+  closeTerminal: (id: string) => Promise<void>;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -234,5 +245,64 @@ export const useAppStore = create<AppState>((set, get) => ({
     
     return { debugLogs: newLogs };
   }),
-  clearLogs: () => set({ debugLogs: [], sessionId: Date.now().toString() })
+  clearLogs: () => set({ debugLogs: [], sessionId: Date.now().toString() }),
+
+  terminals: [{ id: `term-${Date.now()}`, activeProcess: false }],
+  
+  addTerminal: () => set((state) => {
+    if (state.terminals.length >= 4) return state;
+    
+    const baseName = "Terminal";
+    let newName = baseName;
+    let counter = 2;
+    while (state.terminals.some(t => (t.name || t.id).toLowerCase() === newName.toLowerCase())) {
+      newName = `${baseName} (${counter})`;
+      counter++;
+    }
+    
+    return {
+      terminals: [...state.terminals, { id: `term-${Date.now()}`, name: newName, activeProcess: false }]
+    };
+  }),
+
+  renameTerminal: (id, name) => set((state) => {
+    const originalTerminal = state.terminals.find(t => t.id === id);
+    if (!originalTerminal) return state;
+    
+    if (originalTerminal.name === name) return state;
+    
+    let uniqueName = name;
+    let counter = 2;
+    while (state.terminals.some(t => t.id !== id && (t.name || t.id).toLowerCase() === uniqueName.toLowerCase())) {
+      uniqueName = `${name} (${counter})`;
+      counter++;
+    }
+    
+    return {
+      terminals: state.terminals.map(t => t.id === id ? { ...t, name: uniqueName } : t)
+    };
+  }),
+
+  closeTerminal: async (id) => {
+    const state = get();
+    const session = state.terminals.find(t => t.id === id);
+    if (session?.activeProcess) {
+      const confirm = window.confirm("Process is still running. Force close?");
+      if (!confirm) return;
+    }
+
+    try {
+      await invoke('close_pty', { id });
+    } catch (e) {
+      console.error("Failed to close PTY:", e);
+    }
+
+    set((state) => {
+      const newTerms = state.terminals.filter(t => t.id !== id);
+      if (newTerms.length === 0) {
+        return { terminals: [{ id: `term-${Date.now()}`, name: 'Terminal', activeProcess: false }] };
+      }
+      return { terminals: newTerms };
+    });
+  }
 }));

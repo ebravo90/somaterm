@@ -10,7 +10,7 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
 // Import xterm default CSS
 import '@xterm/xterm/css/xterm.css';
 
-export function TerminalCanvas() {
+export function TerminalCanvas({ id }: { id: string }) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const term = useRef<Terminal | null>(null);
   const fitAddon = useRef<FitAddon | null>(null);
@@ -66,7 +66,7 @@ export function TerminalCanvas() {
     const setupIpc = async () => {
       try {
         // Listen to incoming data from Rust
-        unlistenPromise = listen<string>('pty-read', (event) => {
+        unlistenPromise = listen<string>(`pty-read-${id}`, (event) => {
           if (term.current) {
             term.current.write(event.payload);
           }
@@ -74,14 +74,14 @@ export function TerminalCanvas() {
 
         // Send keystrokes to Rust
         term.current?.onData((data) => {
-          invoke('write_to_pty', { data }).catch((e) => {
+          invoke('write_to_pty', { id, data }).catch((e) => {
             console.error(e);
             setError(String(e));
           });
         });
 
         // Spawn the shell process on mount
-        await invoke('spawn_pty');
+        await invoke('spawn_pty', { id });
       } catch (e) {
         console.error("IPC Error:", e);
         setError(String(e));
@@ -99,6 +99,7 @@ export function TerminalCanvas() {
           fitAddon.current.fit();
           // Inform Rust backend about new dimensions
           invoke('resize_pty', {
+            id,
             rows: term.current.rows,
             cols: term.current.cols,
           }).catch(console.error);
