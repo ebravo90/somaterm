@@ -113,9 +113,17 @@ export function TerminalCanvas({ id }: { id: string }) {
 
     resizeObserver.observe(terminalRef.current);
 
+    const clearHandler = (e: any) => {
+      if (e.detail.id === id && term.current) {
+        term.current.clear();
+      }
+    };
+    window.addEventListener('somaterm-clear-buffer', clearHandler);
+
     return () => {
       clearTimeout(resizeTimeout);
       resizeObserver.disconnect();
+      window.removeEventListener('somaterm-clear-buffer', clearHandler);
       if (unlistenPromise) {
         unlistenPromise.then(unlisten => unlisten());
       }

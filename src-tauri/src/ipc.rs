@@ -26,6 +26,22 @@ impl PermissionGate {
     }
 }
 
+#[derive(serde::Deserialize, Clone)]
+pub struct TerminalInfo {
+    pub id: String,
+    pub name: String,
+}
+
+#[tauri::command]
+pub fn update_active_terminals_menu(
+    terminals: Vec<TerminalInfo>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let menu = crate::build_menu(&app_handle, &terminals).map_err(|e| e.to_string())?;
+    app_handle.set_menu(menu).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn write_to_pty(id: String, data: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
     PermissionGate::validate_and_route(&data)?;

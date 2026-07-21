@@ -85,7 +85,7 @@ const TerminalLabel: React.FC<{
 };
 
 export const TerminalGrid: React.FC = () => {
-  const { terminals, addTerminal, renameTerminal, closeTerminal } = useAppStore();
+  const { terminals, activeTerminalId, setActiveTerminalId, addTerminal, renameTerminal, closeTerminal } = useAppStore();
   const [containerWidth, setContainerWidth] = useState<number>(1000);
   const [showBadge, setShowBadge] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,7 +134,12 @@ export const TerminalGrid: React.FC = () => {
   const hiddenCount = terminals.length - visibleTerminals.length;
 
   const renderTerminal = (session: TerminalSession) => (
-    <div key={session.id} className="flex flex-col w-full h-full relative bg-soma-bg">
+    <div 
+      key={session.id} 
+      className={`flex flex-col w-full h-full relative bg-soma-bg transition-colors duration-200 ${activeTerminalId === session.id ? 'ring-1 ring-inset ring-soma-accent' : ''}`}
+      onClick={() => setActiveTerminalId(session.id)}
+      onFocusCapture={() => setActiveTerminalId(session.id)}
+    >
       <TerminalLabel 
         session={session}
         onChangeName={renameTerminal}

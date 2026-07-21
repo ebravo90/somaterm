@@ -48,6 +48,8 @@ interface AppState {
   clearLogs: () => void;
 
   terminals: TerminalSession[];
+  activeTerminalId: string | null;
+  setActiveTerminalId: (id: string | null) => void;
   addTerminal: () => void;
   renameTerminal: (id: string, name: string) => void;
   closeTerminal: (id: string) => Promise<void>;
@@ -248,6 +250,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearLogs: () => set({ debugLogs: [], sessionId: Date.now().toString() }),
 
   terminals: [{ id: `term-${Date.now()}`, activeProcess: false }],
+  activeTerminalId: null,
+  setActiveTerminalId: (id) => set({ activeTerminalId: id }),
   
   addTerminal: () => set((state) => {
     if (state.terminals.length >= 4) return state;
@@ -260,8 +264,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       counter++;
     }
     
+    const newId = `term-${Date.now()}`;
     return {
-      terminals: [...state.terminals, { id: `term-${Date.now()}`, name: newName, activeProcess: false }]
+      terminals: [...state.terminals, { id: newId, name: newName, activeProcess: false }],
+      activeTerminalId: newId
     };
   }),
 
@@ -299,10 +305,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     set((state) => {
       const newTerms = state.terminals.filter(t => t.id !== id);
-      if (newTerms.length === 0) {
-        return { terminals: [{ id: `term-${Date.now()}`, name: 'Terminal', activeProcess: false }] };
+      let newActiveId = state.activeTerminalId;
+      if (newActiveId === id) {
+        newActiveId = newTerms.length > 0 ? newTerms[newTerms.length - 1].id : null;
       }
-      return { terminals: newTerms };
+      
+      if (newTerms.length === 0) {
+        const newId = `term-${Date.now()}`;
+        return { 
+          terminals: [{ id: newId, name: 'Terminal', activeProcess: false }],
+          activeTerminalId: newId 
+        };
+      }
+      return { terminals: newTerms, activeTerminalId: newActiveId };
     });
   }
 }));

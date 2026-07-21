@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { TerminalGrid } from './components/TerminalGrid';
 import { useAppStore } from './store/useAppStore';
 import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebview';
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
@@ -22,12 +23,18 @@ function App() {
     setHasUnread,
     webViews, 
     activeWebId,
-    isSettingsOpen
+    isSettingsOpen,
+    terminals
   } = useAppStore();
   
   const [terminalWidth, setTerminalWidth] = useState(66.66); // percentage
   const isDragging = useRef(false);
   const [isDraggingState, setIsDraggingState] = useState(false);
+
+  useEffect(() => {
+    const activeTerms = terminals.map(t => ({ id: t.id, name: t.name || t.id }));
+    invoke('update_active_terminals_menu', { terminals: activeTerms }).catch(console.error);
+  }, [terminals]);
 
   useEffect(() => {
     useAppStore.getState().addLog({
@@ -73,8 +80,56 @@ function App() {
       }
     });
 
-    const unlistenSettings = listen('toggle-settings', () => {
+    const unlistenSettings = listen('menu-settings', () => {
       useAppStore.getState().toggleSettings();
+    });
+
+    const unlistenNewTerminal = listen('menu-new-terminal', () => {
+      useAppStore.getState().addTerminal();
+    });
+
+    const unlistenCloseTerminal = listen('menu-close-terminal', () => {
+      const state = useAppStore.getState();
+      if (state.activeTerminalId) {
+        state.closeTerminal(state.activeTerminalId);
+      }
+    });
+
+    const unlistenClearBuffer = listen('menu-clear-buffer', () => {
+      const state = useAppStore.getState();
+      if (state.activeTerminalId) {
+        window.dispatchEvent(new CustomEvent('somaterm-clear-buffer', { detail: { id: state.activeTerminalId } }));
+      }
+    });
+
+    const unlistenToggleWeb = listen('menu-toggle-web', () => {
+      const store = useAppStore.getState();
+      store.activeWidget?.type === 'web_manager' ? store.closeWidget() : store.setActiveWidget({ type: 'web_manager' });
+    });
+
+    const unlistenToggleAgent = listen('menu-toggle-agent', () => {
+      const store = useAppStore.getState();
+      store.activeWidget?.type === 'agent' ? store.closeWidget() : store.setActiveWidget({ type: 'agent' });
+    });
+
+    const unlistenClearContext = listen('menu-clear-context', () => {
+      useAppStore.getState().clearChatHistory();
+    });
+
+    const unlistenDocs = listen('menu-docs', () => {
+      const store = useAppStore.getState();
+      store.addWebView('https://github.com/ebravo90/somaterm');
+      store.setActiveWidget({ type: 'web_manager' });
+    });
+
+    const unlistenNavUrl = listen('menu-navigate-url', () => {
+      const store = useAppStore.getState();
+      store.setActiveWidget({ type: 'web_manager' });
+    });
+
+    const unlistenFocusTerminal = listen('menu-focus-terminal', (event) => {
+      const termId = event.payload as string;
+      useAppStore.getState().setActiveTerminalId(termId);
     });
 
     const unlistenLog = listen('new-log', (event) => {
@@ -101,6 +156,15 @@ function App() {
       unlistenHibernated.then(f => f());
       unlistenHeartbeat.then(f => f());
       unlistenSettings.then(f => f());
+      unlistenNewTerminal.then(f => f());
+      unlistenCloseTerminal.then(f => f());
+      unlistenClearBuffer.then(f => f());
+      unlistenToggleWeb.then(f => f());
+      unlistenToggleAgent.then(f => f());
+      unlistenClearContext.then(f => f());
+      unlistenDocs.then(f => f());
+      unlistenNavUrl.then(f => f());
+      unlistenFocusTerminal.then(f => f());
       unlistenLog.then(f => f());
       clearInterval(audioTimeout);
     };
