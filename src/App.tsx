@@ -8,6 +8,11 @@ import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
 import { SettingsModal } from './components/SettingsModal';
 import { DebugConsole } from './components/DebugConsole';
 
+// Expose store for Playwright E2E testing
+if (import.meta.env.DEV) {
+  (window as any).__store = useAppStore;
+}
+
 function App() {
   const { 
     activeWidget, 

@@ -68,6 +68,10 @@ export function TerminalCanvas({ id }: { id: string }) {
         // Listen to incoming data from Rust
         unlistenPromise = listen<string>(`pty-read-${id}`, (event) => {
           if (term.current) {
+            if (typeof event.payload !== 'string') {
+              useAppStore.getState().addLog({ level: 'ERROR', source: 'Terminal', message: `Received malformed IPC payload for ${id}: ${typeof event.payload}` });
+              return;
+            }
             term.current.write(event.payload);
           }
         });
