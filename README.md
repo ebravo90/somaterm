@@ -27,7 +27,7 @@ Engineered with software quality and robustness in mind, Somaterm seamlessly ble
 
 ## Demo
 
-![Somaterm Demo](./readme-demo.webm)
+<video src="./readme-demo.webm" controls="controls" muted="muted" width="100%"></video>
 
 ## Getting Started
 
