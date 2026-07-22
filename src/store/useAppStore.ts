@@ -75,6 +75,8 @@ interface AppState {
 
   sendMessage: (input: string) => Promise<void>;
   abortController: AbortController | null;
+  stopGeneration: () => void;
+  generateChatTitle: (sessionId: string) => void;
 
   agents: AgentProfile[];
   selectedAgentId: string | null;
@@ -331,11 +333,102 @@ export const useAppStore = create<AppState>((set, get) => ({
   isGenerating: false,
   setIsGenerating: (val) => set({ isGenerating: val }),
   abortController: null,
+  stopGeneration: () => {
+    const state = get();
+    if (state.abortController) {
+      state.abortController.abort();
+    }
+
+    let newSessions = state.sessions;
+    if (state.activeSessionId) {
+      newSessions = state.sessions.map(session => {
+        if (session.id === state.activeSessionId && session.messages.length > 0) {
+          const lastIndex = session.messages.length - 1;
+          const lastMessage = session.messages[lastIndex];
+          if (lastMessage.role === 'assistant') {
+            const backtickCount = (lastMessage.content.match(/```/g) || []).length;
+            if (backtickCount % 2 !== 0) {
+              const updatedMessages = [...session.messages];
+              updatedMessages[lastIndex] = {
+                ...lastMessage,
+                content: lastMessage.content + '\n```\n'
+              };
+              return { ...session, messages: updatedMessages };
+            }
+          }
+        }
+        return session;
+      });
+    }
+
+    set({
+      isGenerating: false,
+      abortController: new AbortController(),
+      sessions: newSessions
+    });
+  },
   hasLoadedHistory: false,
   setHasLoadedHistory: (val) => set({ hasLoadedHistory: val }),
   hasUnread: false,
   setHasUnread: (value) => set({ hasUnread: value }),
 
+  generateChatTitle: (sessionId: string) => {
+    setTimeout(async () => {
+      const state = get();
+      const currentSession = state.sessions.find(s => s.id === sessionId);
+      if (!currentSession) return;
+      
+      const userMsgCount = currentSession.messages.filter(m => m.role === 'user').length;
+      if (userMsgCount !== 1 || currentSession.title !== 'New Chat') return;
+
+      const activeAgent = state.agents.find(a => a.id === currentSession.agentId);
+      if (!activeAgent) return;
+
+      const firstUserMessage = currentSession.messages.find(m => m.role === 'user')?.content || '';
+
+      get().addLog({ level: 'INFO', source: 'Agent', message: `[AutoTitle] Triggered for session: ${sessionId}` });
+      get().addLog({ level: 'INFO', source: 'Agent', message: '[AutoTitle] Fetching from LLM...' });
+
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (activeAgent.apiKey && activeAgent.apiKey.trim() !== '') {
+          headers['Authorization'] = `Bearer ${activeAgent.apiKey.trim()}`;
+        }
+        const titlePayload: any = {
+          model: activeAgent.modelName.trim(),
+          messages: [{ role: 'user', content: "Summarize the following prompt in 3 to 5 words to use as a chat title. Do not use quotes or punctuation: " + firstUserMessage }],
+          stream: false
+        };
+        if (activeAgent.type === 'local') {
+          titlePayload.keep_alive = 0;
+        }
+
+        const titleResponse = await fetch(activeAgent.endpoint.trim(), {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(titlePayload),
+          signal: AbortSignal.timeout(10000)
+        });
+        if (titleResponse.ok) {
+          const titleData = await titleResponse.json();
+          let generatedTitle = titleData.choices?.[0]?.message?.content || titleData.message?.content || 'New Chat';
+          generatedTitle = generatedTitle.replace(/["']/g, '').trim();
+          
+          get().addLog({ level: 'INFO', source: 'Agent', message: `[AutoTitle] Received title: ${generatedTitle}` });
+          get().updateSession(sessionId, { title: generatedTitle, isGeneratingTitle: false });
+          
+          const finalState = get();
+          invoke('save_history', { payload: JSON.stringify(finalState.sessions) }).catch(e => console.error("Failed to save history", e));
+          get().addLog({ level: 'INFO', source: 'Agent', message: '[AutoTitle] Zustand state updated and history saved.' });
+        } else {
+          get().updateSession(sessionId, { isGeneratingTitle: false });
+        }
+      } catch (e) {
+        get().addLog({ level: 'ERROR', source: 'Agent', message: `Auto-titling failed or timed out: ${e}` });
+        get().updateSession(sessionId, { isGeneratingTitle: false });
+      }
+    }, 0);
+  },
 
   sendMessage: async (input: string) => {
     const state = get();
@@ -369,42 +462,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     state.setIsGenerating(true);
 
     if (isFirstMessage) {
-      setTimeout(async () => {
-        try {
-          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-          if (activeAgent.apiKey && activeAgent.apiKey.trim() !== '') {
-            headers['Authorization'] = `Bearer ${activeAgent.apiKey.trim()}`;
-          }
-          const titlePayload: any = {
-            model: activeAgent.modelName.trim(),
-            messages: [{ role: 'system', content: 'Extract the core technical topic from the following user prompt. Generate a concise title (max 5 words). Do not use quotes, punctuation, or sarcasm. Be strictly objective.' }, { role: 'user', content: input }]
-          };
-          if (activeAgent.type === 'local') {
-            titlePayload.keep_alive = 0;
-          }
-
-          console.info("[Network] Dispatching auto-title request to:", activeAgent.endpoint.trim());
-          const titleResponse = await fetch(activeAgent.endpoint.trim(), {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(titlePayload),
-            signal: AbortSignal.timeout(10000)
-          });
-          if (titleResponse.ok) {
-            const titleData = await titleResponse.json();
-            let newTitle = titleData.choices?.[0]?.message?.content || titleData.message?.content || 'New Chat';
-            newTitle = newTitle.replace(/["']/g, '').trim();
-            if (sessionId) {
-              get().updateSession(sessionId, { title: newTitle, isGeneratingTitle: false });
-            }
-          } else {
-            if (sessionId) get().updateSession(sessionId, { isGeneratingTitle: false });
-          }
-        } catch (e) {
-          console.error("Auto-titling failed", e);
-          if (sessionId) get().updateSession(sessionId, { isGeneratingTitle: false });
-        }
-      }, 0);
+      state.generateChatTitle(sessionId);
     }
 
     const abortController = new AbortController();
@@ -424,10 +482,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       
       if (activeAgent.type === 'local') {
         payload.keep_alive = 0;
-        console.info("[Agent Lifecycle] Waking up local model. Expect cold start delay...");
+        get().addLog({ level: 'INFO', source: 'Agent', message: '[Agent Lifecycle] Waking up local model. Expect cold start delay...' });
       }
 
-      console.info("[Network] Dispatching generation request to:", activeAgent.endpoint.trim());
+      get().addLog({ level: 'INFO', source: 'Agent', message: `[Network] Dispatching generation request to: ${activeAgent.endpoint.trim()}` });
       const response = await fetch(activeAgent.endpoint.trim(), {
         method: 'POST',
         headers,
@@ -442,7 +500,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!response.body) throw new Error("No response body");
 
       get().addMessageToActiveSession({ role: 'assistant', content: '' });
-      console.info("[Agent Lifecycle] Stream started. Model loaded in RAM.");
+      get().addLog({ level: 'INFO', source: 'Agent', message: '[Agent Lifecycle] Stream started. Model loaded in RAM.' });
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -484,11 +542,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         new Audio('/ping.mp3').play().catch(() => {});
       }
       if (activeAgent.type === 'local') {
-        console.info("[Agent Lifecycle] Stream complete. Ollama auto-unloading model...");
+        get().addLog({ level: 'INFO', source: 'Agent', message: '[Agent Lifecycle] Stream complete. Ollama auto-unloading model...' });
       }
     } catch (error: any) {
       if (activeAgent.type === 'local') {
-        console.error("[Agent Lifecycle] Stream aborted/failed. Memory released.");
+        get().addLog({ level: 'ERROR', source: 'Agent', message: '[Agent Lifecycle] Stream aborted/failed. Memory released.' });
       }
       if (error.name !== 'AbortError') {
         get().addMessageToActiveSession({ role: 'assistant', content: `Error: ${error.message || error}` });
@@ -496,6 +554,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     } finally {
       const finalState = get();
       finalState.setIsGenerating(false);
+      
+      if (sessionId) {
+        finalState.generateChatTitle(sessionId);
+      }
+      
       set({ abortController: null });
       invoke('save_history', { payload: JSON.stringify(finalState.sessions) }).catch(e => console.error("Failed to save history", e));
     }
