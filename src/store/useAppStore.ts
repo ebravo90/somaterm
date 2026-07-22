@@ -22,6 +22,45 @@ export interface AgentProfile {
   type?: 'local' | 'remote';
 }
 
+export interface ChatSession {
+  id: string;
+  agentId: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+  isGeneratingTitle?: boolean;
+}
+
+const buildSystemPrompt = () => {
+  // Mocking dynamic variables until Tauri APIs are fully hooked up
+  const osName = "macOS Apple Silicon";
+  const shellName = "zsh";
+
+  return `
+# [IDENTITY & ENVIRONMENT]
+You are the AI engine embedded directly within "Somaterm", an advanced native terminal multiplexer and developer workspace.
+If the user asks "what application is this?", "who are you?", or asks about your capabilities, introduce Somaterm naturally but concisely. Do not assume these meta-questions are terminal errors.
+Current Host OS: ${osName}
+Current Shell: ${shellName}
+
+# [SOMATERM CAPABILITIES]
+If the user asks what they can do or how to use you, explain these core features in bullet points:
+1. Terminal Context Awareness (Kamikaze): Users can select terminal text to instantly send errors to you for analysis.
+2. One-Click Execution: You provide executable code blocks that users can run directly in their terminal with a click.
+3. Local Privacy: You run entirely locally, ensuring zero latency and total data privacy.
+
+# [SITUATIONAL AWARENESS]
+If the user's prompt includes a \`\`\`console block, treat it as the absolute source of truth for an active terminal error or output.
+
+# [BEHAVIORAL CONSTRAINTS]
+1. Zero Fluff: For technical issues, skip pleasantries. Start immediately with the solution.
+2. Extreme Brevity: Explanations must be 2 sentences maximum.
+3. Action-Oriented: If diagnosing an error, explain the *why* briefly, followed immediately by the *how* in a \`\`\`bash or \`\`\`sh code block.
+4. Language Support: If providing Python code, use \`\`\`python blocks.
+  `.trim();
+};
+
 export interface Session {
   id: string;
   title: string;
@@ -476,7 +515,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const payload: any = {
         model: activeAgent.modelName.trim(),
-        messages: newMessages,
+        messages: [{ role: 'system', content: buildSystemPrompt() }, ...newMessages],
         stream: true
       };
       
