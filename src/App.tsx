@@ -3,6 +3,8 @@ import { TerminalGrid } from './components/TerminalGrid';
 import { useAppStore } from './store/useAppStore';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+import { exit } from '@tauri-apps/plugin-process';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebview';
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
@@ -41,6 +43,18 @@ function App() {
       level: 'INFO',
       source: 'UX',
       message: 'Somaterm UI initialized successfully.'
+    });
+
+    const unlistenClose = getCurrentWindow().onCloseRequested(async (event) => {
+      event.preventDefault();
+      
+      const store = useAppStore.getState();
+      
+      if (store.abortController) {
+        store.abortController.abort();
+      }
+      
+      await exit(0);
     });
 
     const unlistenUrl = listen('webview-url-changed', (event) => {
@@ -113,7 +127,7 @@ function App() {
     });
 
     const unlistenClearContext = listen('menu-clear-context', () => {
-      useAppStore.getState().clearChatHistory();
+      useAppStore.getState().clearActiveSession();
     });
 
     const unlistenDocs = listen('menu-docs', () => {
@@ -166,6 +180,7 @@ function App() {
       unlistenNavUrl.then(f => f());
       unlistenFocusTerminal.then(f => f());
       unlistenLog.then(f => f());
+      unlistenClose.then(f => f());
       clearInterval(audioTimeout);
     };
   }, []);

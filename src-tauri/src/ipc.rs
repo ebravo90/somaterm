@@ -1,6 +1,6 @@
 use crate::pty::PtyManager;
 use std::sync::Mutex;
-use tauri::{State, Emitter};
+use tauri::{Emitter, State};
 
 #[derive(Clone, serde::Serialize)]
 struct UrlChangedPayload {
@@ -9,7 +9,7 @@ struct UrlChangedPayload {
 }
 
 /// The PermissionGate acts as a middleware for all commands sent to the PTY.
-/// 
+///
 /// In Phase 1, it acts as a simple pass-through.
 /// In future phases (Project Nikkei), it will route AI command injections based on the
 /// workspace's security level:
@@ -61,19 +61,22 @@ pub struct AgentProfile {
 
 #[tauri::command]
 pub fn load_agents(app_handle: tauri::AppHandle) -> Result<Vec<AgentProfile>, String> {
-    use tauri::Manager;
     use keyring::Entry;
+    use tauri::Manager;
 
-    let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
+    let config_dir = app_handle
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
-    
+
     let agents_file = config_dir.join("agents.json");
     if !agents_file.exists() {
         return Ok(Vec::new());
     }
     let data = std::fs::read_to_string(agents_file).map_err(|e| e.to_string())?;
     let mut agents: Vec<AgentProfile> = serde_json::from_str(&data).unwrap_or_else(|_| Vec::new());
-    
+
     for agent in &mut agents {
         if let Ok(entry) = Entry::new("somaterm", &format!("agent-{}", agent.id)) {
             if let Ok(password) = entry.get_password() {
@@ -83,18 +86,24 @@ pub fn load_agents(app_handle: tauri::AppHandle) -> Result<Vec<AgentProfile>, St
             }
         }
     }
-    
+
     Ok(agents)
 }
 
 #[tauri::command]
-pub fn save_agents(mut agents: Vec<AgentProfile>, app_handle: tauri::AppHandle) -> Result<(), String> {
-    use tauri::Manager;
+pub fn save_agents(
+    mut agents: Vec<AgentProfile>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
     use keyring::Entry;
+    use tauri::Manager;
 
-    let config_dir = app_handle.path().app_config_dir().map_err(|e| e.to_string())?;
+    let config_dir = app_handle
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
-    
+
     for agent in &mut agents {
         if let Ok(entry) = Entry::new("somaterm", &format!("agent-{}", agent.id)) {
             if let Some(key) = &agent.api_key {
@@ -110,7 +119,7 @@ pub fn save_agents(mut agents: Vec<AgentProfile>, app_handle: tauri::AppHandle) 
         // Strip the API key so it is never saved to the JSON file
         agent.api_key = None;
     }
-    
+
     let agents_file = config_dir.join("agents.json");
     let json = serde_json::to_string_pretty(&agents).map_err(|e| e.to_string())?;
     std::fs::write(agents_file, json).map_err(|e| e.to_string())?;
@@ -118,21 +127,83 @@ pub fn save_agents(mut agents: Vec<AgentProfile>, app_handle: tauri::AppHandle) 
 }
 
 #[tauri::command]
-pub fn write_to_pty(id: String, data: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+pub fn save_history(payload: String, app_handle: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    println!(
+        "Rust: save_history invoked. Payload size: {} bytes",
+        payload.len()
+    );
+
+    let config_dir = app_handle
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&config_dir).map_err(|e| e.to_string())?;
+
+    let history_file = config_dir.join("history.json");
+    std::fs::write(&history_file, payload).map_err(|e| {
+        println!("Rust: Failed to write history file: {}", e);
+        e.to_string()
+    })?;
+
+    println!("Rust: Successfully saved history.json");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_history(app_handle: tauri::AppHandle) -> Result<String, String> {
+    use tauri::Manager;
+    println!("Rust: load_history invoked.");
+
+    let config_dir = app_handle
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?;
+    let history_file = config_dir.join("history.json");
+
+    if !history_file.exists() {
+        println!("Rust: history.json does not exist. Returning empty array.");
+        return Ok("[]".to_string());
+    }
+
+    let data = std::fs::read_to_string(&history_file).map_err(|e| {
+        println!("Rust: Failed to read history.json: {}", e);
+        e.to_string()
+    })?;
+
+    println!("Rust: Read history.json, size: {} bytes", data.len());
+    Ok(data)
+}
+
+#[tauri::command]
+pub fn write_to_pty(
+    id: String,
+    data: String,
+    pty: State<'_, Mutex<PtyManager>>,
+) -> Result<(), String> {
     PermissionGate::validate_and_route(&data)?;
     let pty_manager = pty.lock().unwrap();
     pty_manager.write(&id, data)
 }
 
 #[tauri::command]
-pub fn inject_command(id: String, command: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+pub fn inject_command(
+    id: String,
+    command: String,
+    pty: State<'_, Mutex<PtyManager>>,
+) -> Result<(), String> {
     PermissionGate::validate_and_route(&command)?;
     let pty_manager = pty.lock().unwrap();
     pty_manager.write(&id, format!("{}\n", command))
 }
 
 #[tauri::command]
-pub fn resize_pty(id: String, rows: u16, cols: u16, pty: State<'_, Mutex<PtyManager>>) -> Result<(), String> {
+pub fn resize_pty(
+    id: String,
+    rows: u16,
+    cols: u16,
+    pty: State<'_, Mutex<PtyManager>>,
+) -> Result<(), String> {
     let pty_manager = pty.lock().unwrap();
     pty_manager.resize(&id, rows, cols)
 }
@@ -154,14 +225,23 @@ pub fn close_pty(id: String, pty: State<'_, Mutex<PtyManager>>) -> Result<(), St
 }
 
 #[tauri::command]
-pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y: f64, width: f64, height: f64, height_offset: f64) -> Result<(), String> {
+pub fn create_webview(
+    window: tauri::Window,
+    id: String,
+    url: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    height_offset: f64,
+) -> Result<(), String> {
     use tauri::Manager;
-    
+
     // Close existing if any
     if let Some(existing) = window.get_webview(&id) {
         let _ = existing.close();
     }
-    
+
     let url_parsed = url.parse().map_err(|e| format!("Invalid URL: {}", e))?;
     let builder = tauri::WebviewBuilder::new(&id, tauri::WebviewUrl::External(url_parsed))
         .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -207,12 +287,12 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                 });
             }
         });
-        
+
     let id_clone = id.clone();
     let app_handle = window.app_handle().clone();
     let builder = builder.on_navigation(move |url| {
         let url_str = url.to_string();
-        
+
         if url_str.starts_with("about:blank?hibernate=true") {
             if let Some(webview) = app_handle.get_webview(&id_clone) {
                 let _ = webview.close();
@@ -232,52 +312,74 @@ pub fn create_webview(window: tauri::Window, id: String, url: String, x: f64, y:
                     }
                 }
             }
-            
+
             #[derive(Clone, serde::Serialize)]
             struct HeartbeatPayload {
                 id: String,
                 playing: bool,
                 url: String,
             }
-            
-            let _ = app_handle.emit("webview_media_heartbeat", HeartbeatPayload {
-                id: id_clone.clone(),
-                playing,
-                url: extracted_url,
-            });
-            
+
+            let _ = app_handle.emit(
+                "webview_media_heartbeat",
+                HeartbeatPayload {
+                    id: id_clone.clone(),
+                    playing,
+                    url: extracted_url,
+                },
+            );
+
             return false;
         }
 
         if url_str != "about:blank" && !url_str.starts_with("about:blank?") {
-            let _ = app_handle.emit("webview-url-changed", UrlChangedPayload {
-                id: id_clone.clone(),
-                url: url_str,
-            });
+            let _ = app_handle.emit(
+                "webview-url-changed",
+                UrlChangedPayload {
+                    id: id_clone.clone(),
+                    url: url_str,
+                },
+            );
         }
         true
     });
-    
+
     let adjusted_height = height + height_offset;
-    println!("[DEBUG] Rust received bounds -> X: {}, Y: {}, W: {}, H: {}, Offset: {}", x, y, width, height, height_offset);
-    
-    let webview = window.add_child(
-        builder,
-        tauri::LogicalPosition::new(x, y),
-        tauri::LogicalSize::new(width, adjusted_height)
-    ).map_err(|e| e.to_string())?;
-    
+    println!(
+        "[DEBUG] Rust received bounds -> X: {}, Y: {}, W: {}, H: {}, Offset: {}",
+        x, y, width, height, height_offset
+    );
+
+    let webview = window
+        .add_child(
+            builder,
+            tauri::LogicalPosition::new(x, y),
+            tauri::LogicalSize::new(width, adjusted_height),
+        )
+        .map_err(|e| e.to_string())?;
+
     let _ = webview.show();
-    
+
     Ok(())
 }
 
 #[tauri::command]
-pub fn resize_webview(window: tauri::Window, id: String, x: f64, y: f64, width: f64, height: f64, height_offset: f64) -> Result<(), String> {
+pub fn resize_webview(
+    window: tauri::Window,
+    id: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    height_offset: f64,
+) -> Result<(), String> {
     use tauri::Manager;
     if let Some(webview) = window.get_webview(&id) {
         let adjusted_height = height + height_offset;
-        println!("[DEBUG] Rust received bounds -> X: {}, Y: {}, W: {}, H: {}, Offset: {}", x, y, width, height, height_offset);
+        println!(
+            "[DEBUG] Rust received bounds -> X: {}, Y: {}, W: {}, H: {}, Offset: {}",
+            x, y, width, height, height_offset
+        );
 
         let _ = webview.set_bounds(tauri::Rect {
             position: tauri::LogicalPosition::new(x, y).into(),
@@ -346,7 +448,8 @@ pub fn webview_open_devtools(window: tauri::Window, id: String) -> Result<(), St
 pub fn try_hibernate_webview(window: tauri::Window, id: String) -> Result<(), String> {
     use tauri::Manager;
     if let Some(webview) = window.get_webview(&id) {
-        let _ = webview.eval("if (window.__SOMATERM_CHECK_MEDIA__) window.__SOMATERM_CHECK_MEDIA__()");
+        let _ =
+            webview.eval("if (window.__SOMATERM_CHECK_MEDIA__) window.__SOMATERM_CHECK_MEDIA__()");
     }
     Ok(())
 }
@@ -364,12 +467,12 @@ pub fn webview_navigate(window: tauri::Window, id: String, url: String) -> Resul
 pub fn open_logs_folder(app_handle: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
     let log_dir = app_handle.path().app_log_dir().map_err(|e| e.to_string())?;
-    
+
     std::process::Command::new("open")
         .arg(log_dir)
         .spawn()
         .map_err(|e| e.to_string())?;
-        
+
     Ok(())
 }
 
@@ -377,9 +480,12 @@ pub fn open_logs_folder(app_handle: tauri::AppHandle) -> Result<(), String> {
 pub fn write_debug_log(session_id: String, log_line: String) -> Result<(), String> {
     use std::io::Write;
     let _ = std::fs::create_dir_all("../debug");
-    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(format!("../debug/session_{}.log", session_id)) {
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(format!("../debug/session_{}.log", session_id))
+    {
         let _ = writeln!(file, "{}", log_line);
     }
     Ok(())
 }
-

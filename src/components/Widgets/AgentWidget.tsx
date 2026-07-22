@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import type { AgentProfile } from '../../store/useAppStore';
+import type { AgentProfile, Session } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
 
 function AgentSettingsItem({
@@ -61,14 +61,20 @@ function AgentSettingsItem({
         headers['Authorization'] = `Bearer ${agent.apiKey.trim()}`;
       }
 
+      const verifyPayload: any = {
+        model: agent.modelName.trim(),
+        messages: [{ role: 'system', content: 'hello' }],
+        max_tokens: 1
+      };
+      
+      if (agent.type === 'local') {
+        verifyPayload.keep_alive = 0;
+      }
+
       const res = await fetch(agent.endpoint.trim(), {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          model: agent.modelName.trim(),
-          messages: [{ role: 'system', content: 'hello' }],
-          max_tokens: 1
-        })
+        body: JSON.stringify(verifyPayload)
       });
 
       if (res.ok) {
@@ -132,6 +138,26 @@ function AgentSettingsItem({
               className="w-full bg-black/20 rounded-md px-3 py-2 text-sm text-soma-text focus:outline-none focus:ring-1 focus:ring-soma-accent disabled:opacity-50 disabled:bg-transparent transition-all"
             />
           </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <label className="block text-[10px] uppercase tracking-wider text-soma-text-muted mb-1">Type</label>
+              <select
+                value={agent.type || 'remote'}
+                disabled={!isEditing}
+                onChange={e => {
+                  const newType = e.target.value as 'local' | 'remote';
+                  const newEndpoint = newType === 'local' 
+                    ? 'http://localhost:11434/api/chat' 
+                    : 'https://api.openai.com/v1/chat/completions';
+                  updateAgent(agent.id, { type: newType, endpoint: newEndpoint });
+                }}
+                className="w-full bg-black/20 rounded-md px-3 py-2 text-sm text-soma-text focus:outline-none focus:ring-1 focus:ring-soma-accent disabled:opacity-50 disabled:bg-transparent transition-all"
+              >
+                <option value="remote">Remote (OpenAI, Anthropic, etc)</option>
+                <option value="local">Local (Ollama)</option>
+              </select>
+            </div>
+          </div>
           <div>
             <label className="block text-[10px] uppercase tracking-wider text-soma-text-muted mb-1">Endpoint URL</label>
             <input 
@@ -141,6 +167,11 @@ function AgentSettingsItem({
               onChange={e => updateAgent(agent.id, { endpoint: e.target.value })}
               className="w-full bg-black/20 rounded-md px-3 py-2 text-sm text-soma-text focus:outline-none focus:ring-1 focus:ring-soma-accent disabled:opacity-50 disabled:bg-transparent transition-all"
             />
+            {agent.type === 'local' && agent.endpoint.trim() !== 'http://localhost:11434/api/chat' && (
+              <p className="mt-1 text-[10px] text-red-400">
+                Warning: Local agents require the /api/chat endpoint to auto-unload and prevent severe memory leaks.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-[10px] uppercase tracking-wider text-soma-text-muted mb-1">Model Name</label>
@@ -201,11 +232,151 @@ function AgentSettingsItem({
   );
 }
 
+function HistoryItem({
+  session,
+  isExpanded,
+  onToggleExpand,
+  deleteSession,
+  updateSession,
+  agentDisplayName,
+  isGenerating,
+  onSelectSession
+}: {
+  session: Session;
+  isExpanded: boolean;
+  onToggleExpand: (e?: React.MouseEvent) => void;
+  onSelectSession: () => void;
+  deleteSession: (id: string) => void;
+  updateSession: (id: string, updates: Partial<Session>) => void;
+  agentDisplayName: string;
+  isGenerating: boolean;
+}) {
+  const [deleteState, setDeleteState] = useState<'idle' | 'counting' | 'ready'>('idle');
+  const [deleteTimer, setDeleteTimer] = useState(5);
+
+  useEffect(() => {
+    if (!isExpanded) {
+      setDeleteState('idle');
+      setDeleteTimer(5);
+    }
+  }, [isExpanded]);
+
+  useEffect(() => {
+    if (deleteState !== 'counting') return;
+    if (deleteTimer === 0) {
+      setDeleteState('ready');
+      return;
+    }
+    const t = setTimeout(() => setDeleteTimer(deleteTimer - 1), 1000);
+    return () => clearTimeout(t);
+  }, [deleteState, deleteTimer]);
+
+  const handleDeleteClick = () => {
+    if (isGenerating) return;
+    if (deleteState === 'ready') {
+      deleteSession(session.id);
+    } else if (deleteState === 'idle') {
+      setDeleteState('counting');
+      setDeleteTimer(5);
+    }
+  };
+
+  const formatDate = (ts: number) => {
+    try {
+      if (!ts) return "Unknown Date";
+      const d = new Date(ts);
+      return isNaN(d.getTime()) ? "Unknown Date" : d.toLocaleString();
+    } catch {
+      return "Unknown Date";
+    }
+  };
+
+  return (
+    <div className="overflow-hidden group">
+      <div 
+        className="flex justify-between items-center py-2 px-2 rounded hover:bg-soma-border/30 cursor-pointer transition-colors"
+        onClick={onSelectSession}
+      >
+        <div className="flex items-center gap-2 overflow-hidden">
+          {session.isPinned && (
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-soma-text-muted shrink-0">
+              <path d="M12 17v5"></path>
+              <path d="M9 10.5V7a3 3 0 0 1 6 0v3.5l2 4.5H7l2-4.5z"></path>
+            </svg>
+          )}
+          {session.isGeneratingTitle ? (
+            <div className="flex items-center gap-[2px] h-5 px-1">
+              <div className="w-1 h-1 bg-soma-text-muted rounded-full animate-piston-1"></div>
+              <div className="w-1 h-1 bg-soma-text-muted rounded-full animate-piston-2"></div>
+              <div className="w-1 h-1 bg-soma-text-muted rounded-full animate-piston-3"></div>
+            </div>
+          ) : (
+            <span className="text-sm font-medium text-soma-text truncate">{session.title}</span>
+          )}
+        </div>
+        <div 
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpand();
+          }}
+          className="p-1 hover:bg-soma-border/50 rounded transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            className={`transition-transform shrink-0 text-soma-text-muted ${isExpanded ? 'rotate-180' : ''}`}
+          >
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="px-2 pb-4 space-y-3 mt-2">
+          <div className="space-y-1">
+            <p className="text-xs text-soma-text-muted">Agent: <span className="text-soma-text">{agentDisplayName}</span></p>
+            <p className="text-xs text-soma-text-muted">Started: <span className="text-soma-text">{formatDate(session.startDate)}</span></p>
+            <p className="text-xs text-soma-text-muted">Last Used: <span className="text-soma-text">{formatDate(session.lastUsedDate)}</span></p>
+          </div>
+          
+          <div className="flex flex-col gap-2 pt-2">
+            <button 
+              onClick={() => {
+                updateSession(session.id, { isPinned: !session.isPinned });
+                onToggleExpand(); // Collapse the accordion
+              }}
+              className="w-full bg-soma-bg border border-soma-border hover:bg-soma-border/50 text-soma-text text-sm py-1.5 rounded transition-colors cursor-pointer"
+            >
+              {session.isPinned ? 'Unpin Session' : 'Pin Session'}
+            </button>
+            <button 
+              onClick={handleDeleteClick}
+              disabled={isGenerating}
+              className={`w-full text-sm py-1.5 rounded transition-colors ${
+                isGenerating 
+                  ? 'bg-soma-bg border border-soma-border text-soma-text-muted opacity-50 cursor-not-allowed'
+                  : deleteState === 'idle' 
+                  ? 'bg-soma-bg border border-soma-border hover:bg-soma-border/50 text-soma-text cursor-pointer'
+                  : deleteState === 'counting'
+                  ? 'bg-red-600 text-white border border-red-600 cursor-pointer'
+                  : 'bg-red-700 text-white border border-red-700 cursor-pointer'
+              }`}
+            >
+              {deleteState === 'idle' ? 'Remove Session' : deleteState === 'counting' ? `Are you sure? (${deleteTimer}s)` : 'Ready to remove'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AgentWidget() {
   const { 
     closeWidget, 
-    chatHistory, 
-    addChatMessage,
+    sessions,
+    activeSessionId,
+    deleteSession,
+    updateSession,
+    setActiveSession,
     agents,
     selectedAgentId,
     setAgents,
@@ -214,14 +385,18 @@ export function AgentWidget() {
     removeAgent,
     setSelectedAgentId,
     isHydrated,
-    setIsHydrated
+    setIsHydrated,
+    setSessions,
+    isGenerating,
+    hasLoadedHistory,
+    setHasLoadedHistory
   } = useAppStore();
   
-  const [tab, setTab] = useState<'chat' | 'settings'>('chat');
+  const [tab, setTab] = useState<'chat' | 'history' | 'settings'>('chat');
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -259,10 +434,12 @@ export function AgentWidget() {
 
   useEffect(() => {
     setExpandedAgentId(null);
+    setExpandedSessionId(null);
   }, [tab]);
 
   useEffect(() => {
     async function load() {
+      if (hasLoadedHistory) return;
       try {
         const savedAgents: AgentProfile[] = await invoke('load_agents');
         const savedSelected = localStorage.getItem('soma_selected_agent');
@@ -274,8 +451,32 @@ export function AgentWidget() {
             setSelectedAgentId(savedAgents[0].id);
           }
         }
+
+        console.log("Loading history from vault...");
+        const historyJson: string = await invoke('load_history');
+        if (historyJson) {
+          console.log("History loaded successfully, parsing JSON...");
+          try {
+            const parsed = JSON.parse(historyJson);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              console.log(`Loaded ${parsed.length} sessions.`);
+              setSessions(parsed);
+              // Default to New Chat on Startup
+              setActiveSession(null);
+            } else {
+              console.log("History array is empty or not an array.");
+              setSessions([]);
+            }
+          } catch (e) {
+            console.error("Failed to parse history JSON:", e);
+            setSessions([]);
+          }
+        } else {
+          console.log("Received empty history from backend.");
+        }
+        setHasLoadedHistory(true);
       } catch (e) {
-        console.error("Failed to load agents via IPC", e);
+        console.error("Failed to load data via IPC", e);
       } finally {
         setIsHydrated(true);
       }
@@ -295,6 +496,13 @@ export function AgentWidget() {
     }
   }, [agents, selectedAgentId, isHydrated]);
 
+  useEffect(() => {
+    if (!isHydrated || !hasLoadedHistory) return;
+    
+    // We always save sessions, even if empty, to allow deletion of all history
+    invoke('save_history', { payload: JSON.stringify(sessions) }).catch(e => console.error("Failed to save history", e));
+  }, [sessions, isHydrated, hasLoadedHistory]);
+
   // Auto-select first online agent if current is invalid
   useEffect(() => {
     const onlineAgents = agents.filter(a => a.status === 'online');
@@ -309,65 +517,35 @@ export function AgentWidget() {
 
   const onlineAgents = agents.filter(a => a.status === 'online');
 
+  const currentSession = sessions.find(s => s.id === activeSessionId);
+  const currentMessages = currentSession?.messages || [];
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
+  }, [currentMessages]);
 
+  useEffect(() => {
+    const unlistenPromise = import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
+      return getCurrentWindow().onCloseRequested(() => {
+        const store = useAppStore.getState();
+        const activeAgent = store.agents.find(a => a.id === store.selectedAgentId);
+        if (activeAgent) {
+          store.teardownAgentContext(activeAgent);
+        }
+      });
+    });
+
+    return () => {
+      unlistenPromise.then(unlisten => unlisten());
+    };
+  }, []);
+
+  const store = useAppStore();
   const handleSend = async () => {
     if (!input.trim() || !selectedAgentId) return;
-    
-    const activeAgent = agents.find(a => a.id === selectedAgentId);
-    if (!activeAgent) return;
-
-    const userMessage = { role: 'user' as const, content: input };
-    const newMessages = [...chatHistory, userMessage];
-    addChatMessage(userMessage);
+    const sentInput = input;
     setInput('');
-    setLoading(true);
-
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      
-      if (activeAgent.apiKey && activeAgent.apiKey.trim() !== '') {
-        headers['Authorization'] = `Bearer ${activeAgent.apiKey.trim()}`;
-      }
-
-      const response = await fetch(activeAgent.endpoint.trim(), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          model: activeAgent.modelName.trim(),
-          messages: newMessages
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const aiContent = data.choices?.[0]?.message?.content || data.message?.content || 'No response';
-      
-      let meta: string | undefined;
-      if (data.eval_count && data.eval_duration) {
-        const tks = (data.eval_count / (data.eval_duration / 1e9)).toFixed(2);
-        meta = `${data.eval_count} tokens @ ${tks} tk/s`;
-      }
-      
-      addChatMessage({ role: 'assistant', content: aiContent, meta });
-
-      const store = useAppStore.getState();
-      if (store.activeWidget?.type !== 'agent') {
-        store.setHasUnread(true);
-        new Audio('/ping.mp3').play().catch(() => {});
-      }
-    } catch (error) {
-      addChatMessage({ role: 'assistant', content: `Error: ${error}` });
-    } finally {
-      setLoading(false);
-    }
+    await store.sendMessage(sentInput);
   };
 
   const handleAddAgent = () => {
@@ -429,6 +607,12 @@ export function AgentWidget() {
             Chat
           </button>
           <button 
+            onClick={() => setTab('history')} 
+            className={`text-sm font-medium transition-colors cursor-pointer ${tab === 'history' ? 'text-soma-text' : 'text-soma-text-muted hover:text-soma-text'}`}
+          >
+            {sessions.length > 0 ? `History (${sessions.length})` : 'History'}
+          </button>
+          <button 
             onClick={() => setTab('settings')} 
             className={`text-sm font-medium transition-colors cursor-pointer ${tab === 'settings' ? 'text-soma-text' : 'text-soma-text-muted hover:text-soma-text'}`}
           >
@@ -448,15 +632,15 @@ export function AgentWidget() {
       </div>
 
       <div className="grow overflow-hidden relative">
-        {tab === 'chat' ? (
+        {tab === 'chat' && (
           <div className="flex flex-col h-full">
-            <div className="px-4 py-2 border-b border-soma-border bg-soma-bg/50 backdrop-blur-md z-10 shrink-0 relative" ref={dropdownRef}>
+            <div className="px-4 py-2 border-b border-soma-border bg-soma-bg/50 backdrop-blur-md z-10 shrink-0 relative flex gap-2" ref={dropdownRef}>
               <button 
                 onClick={() => {
                   if (onlineAgents.length > 0) setIsDropdownOpen(!isDropdownOpen);
                 }}
                 disabled={onlineAgents.length === 0}
-                className="w-full bg-soma-bg border border-soma-border rounded-md px-3 py-1.5 text-sm text-soma-text flex justify-between items-center focus:outline-none focus:ring-1 focus:ring-soma-accent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="grow bg-soma-bg border border-soma-border rounded-md px-3 py-1.5 text-sm text-soma-text flex justify-between items-center focus:outline-none focus:ring-1 focus:ring-soma-accent cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>
                   {onlineAgents.length === 0 
@@ -467,6 +651,17 @@ export function AgentWidget() {
                   className={`transition-transform text-soma-text-muted ${isDropdownOpen ? 'rotate-180' : ''}`}
                 >
                   <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              
+              <button
+                onClick={() => setActiveSession(null)}
+                className="shrink-0 bg-soma-bg border border-soma-border hover:bg-soma-border/50 transition-colors text-soma-text rounded-md px-2 flex items-center justify-center cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={onlineAgents.length === 0 || isGenerating}
+                title="New Chat"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
                 </svg>
               </button>
               
@@ -493,12 +688,12 @@ export function AgentWidget() {
             </div>
 
             <div className="grow overflow-y-auto p-4 space-y-4">
-              {chatHistory.length === 0 && (
+              {currentMessages.length === 0 && (
                 <div className="hidden @[250px]:block text-center text-soma-text-muted mt-10">
                   <p>Send a message to start interacting with {agents.find(a => a.id === selectedAgentId)?.displayName || 'the agent'}.</p>
                 </div>
               )}
-              {chatHistory.map((msg, i) => (
+              {currentMessages.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div className={`max-w-[90%] p-3 rounded-lg break-words overflow-hidden ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
                     {renderMessageContent(msg.content)}
@@ -510,7 +705,7 @@ export function AgentWidget() {
                   )}
                 </div>
               ))}
-              {loading && (
+              {isGenerating && (
                 <div className="flex items-start">
                   <div className="max-w-[90%] p-3 rounded-lg bg-soma-border text-soma-text animate-pulse">
                     Thinking...
@@ -526,8 +721,8 @@ export function AgentWidget() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Ask the agent..."
-                disabled={!selectedAgentId || onlineAgents.length === 0}
-                className="w-full bg-soma-panel border border-soma-border rounded-md px-3 py-2 text-sm text-soma-text focus:outline-none focus:border-soma-accent disabled:opacity-50"
+                disabled={!selectedAgentId || onlineAgents.length === 0 || isGenerating}
+                className="w-full bg-soma-panel border border-soma-border rounded-md px-3 py-2 text-sm text-soma-text focus:outline-none focus:border-soma-accent disabled:opacity-50 disabled:cursor-not-allowed"
               />
               {onlineAgents.length === 0 && (
                 <div className="mt-2 text-[10px] text-red-400">
@@ -536,7 +731,60 @@ export function AgentWidget() {
               )}
             </div>
           </div>
-        ) : (
+        )}
+
+        {tab === 'history' && (
+          <div className="p-4 overflow-y-auto h-full pb-20">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-semibold text-soma-text">Chat History</h3>
+              <button 
+                onClick={() => {
+                  setActiveSession(null);
+                  setTab('chat');
+                }}
+                disabled={isGenerating}
+                className="text-soma-text-muted hover:text-white transition-colors p-1 rounded hover:bg-soma-border cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title="New Chat"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="bg-soma-bg/50 backdrop-blur-md rounded-lg p-2 space-y-1">
+              {sessions.length === 0 && (
+                <div className="p-4 text-center text-sm text-soma-text-muted">No history found.</div>
+              )}
+              {[...sessions]
+                .sort((a, b) => {
+                  if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+                  return b.lastUsedDate - a.lastUsedDate;
+                })
+                .map(session => (
+                  <HistoryItem
+                    key={session.id}
+                    session={session}
+                    isExpanded={expandedSessionId === session.id}
+                    onSelectSession={() => {
+                      setActiveSession(session.id);
+                      if (session.agentId) setSelectedAgentId(session.agentId);
+                      setTab('chat');
+                    }}
+                    onToggleExpand={() => {
+                      setExpandedSessionId(expandedSessionId === session.id ? null : session.id);
+                    }}
+                    deleteSession={deleteSession}
+                    updateSession={updateSession}
+                    agentDisplayName={agents.find(a => a.id === session.agentId)?.displayName || 'Unknown Agent'}
+                    isGenerating={isGenerating}
+                  />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'settings' && (
           <div className="p-4 overflow-y-auto h-full pb-20">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-sm font-semibold text-soma-text">Agent Profiles</h3>

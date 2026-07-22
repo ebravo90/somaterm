@@ -15,11 +15,22 @@ export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' |
 export interface AgentProfile {
   id: string;
   displayName: string;
-  type: 'local' | 'remote';
-  endpoint: string;
   modelName: string;
+  endpoint: string;
   apiKey?: string;
-  status: 'checking' | 'online' | 'offline';
+  status: 'offline' | 'online' | 'unknown' | 'checking';
+  type?: 'local' | 'remote';
+}
+
+export interface Session {
+  id: string;
+  title: string;
+  agentId: string | null;
+  startDate: number;
+  lastUsedDate: number;
+  isPinned: boolean;
+  messages: ChatMessage[];
+  isGeneratingTitle?: boolean;
 }
 
 interface AppState {
@@ -41,11 +52,29 @@ interface AppState {
   isWidgetPanelOpen: boolean;
   toggleWidgetPanel: () => void;
   setWidgetPanelOpen: (isOpen: boolean) => void;
-  chatHistory: ChatMessage[];
-  addChatMessage: (message: ChatMessage) => void;
-  clearChatHistory: () => void;
+  
+  sessions: Session[];
+  activeSessionId: string | null;
+  setSessions: (sessions: Session[]) => void;
+  createSession: (agentId: string | null) => string;
+  updateSession: (id: string, updates: Partial<Session>) => void;
+  deleteSession: (id: string) => void;
+  setActiveSession: (id: string | null) => void;
+  addMessageToActiveSession: (message: ChatMessage) => void;
+  appendMessageChunkToActiveSession: (chunk: string) => void;
+  clearActiveSession: () => void;
+  
+  isGenerating: boolean;
+  setIsGenerating: (val: boolean) => void;
+  
+  hasLoadedHistory: boolean;
+  setHasLoadedHistory: (val: boolean) => void;
+  
   hasUnread: boolean;
   setHasUnread: (value: boolean) => void;
+
+  sendMessage: (input: string) => Promise<void>;
+  abortController: AbortController | null;
 
   agents: AgentProfile[];
   selectedAgentId: string | null;
@@ -226,11 +255,251 @@ export const useAppStore = create<AppState>((set, get) => ({
   isWidgetPanelOpen: false,
   toggleWidgetPanel: () => set((state) => ({ isWidgetPanelOpen: !state.isWidgetPanelOpen })),
   setWidgetPanelOpen: (isOpen) => set({ isWidgetPanelOpen: isOpen }),
-  chatHistory: [],
-  addChatMessage: (message) => set((state) => ({ chatHistory: [...state.chatHistory, message] })),
-  clearChatHistory: () => set({ chatHistory: [] }),
+  
+  sessions: [],
+  activeSessionId: null,
+  setSessions: (sessions) => set({ sessions }),
+  createSession: (agentId) => {
+    const id = `session-${Date.now()}`;
+    const newSession: Session = {
+      id,
+      title: 'New Chat',
+      agentId,
+      startDate: Date.now(),
+      lastUsedDate: Date.now(),
+      isPinned: false,
+      messages: []
+    };
+    set((state) => ({
+      sessions: [...state.sessions, newSession],
+      activeSessionId: id
+    }));
+    return id;
+  },
+  updateSession: (id, updates) => set((state) => ({
+    sessions: state.sessions.map(s => s.id === id ? { ...s, ...updates } : s)
+  })),
+  deleteSession: (id) => set((state) => {
+    const newSessions = state.sessions.filter(s => s.id !== id);
+    return {
+      sessions: newSessions,
+      activeSessionId: state.activeSessionId === id ? null : state.activeSessionId
+    };
+  }),
+  setActiveSession: (id) => set({ activeSessionId: id }),
+  addMessageToActiveSession: (message) => set((state) => {
+    if (!state.activeSessionId) return state;
+    return {
+      sessions: state.sessions.map(s => 
+        s.id === state.activeSessionId 
+          ? { ...s, messages: [...s.messages, message], lastUsedDate: Date.now() } 
+          : s
+      )
+    };
+  }),
+  appendMessageChunkToActiveSession: (chunk: string) => set((state) => {
+    if (!state.activeSessionId) return state;
+    return {
+      sessions: state.sessions.map(s => {
+        if (s.id !== state.activeSessionId || s.messages.length === 0) return s;
+        const lastMessageIndex = s.messages.length - 1;
+        const lastMessage = s.messages[lastMessageIndex];
+        
+        // Only append if the last message is from the assistant
+        if (lastMessage.role !== 'assistant') return s;
+        
+        const newMessages = [...s.messages];
+        newMessages[lastMessageIndex] = {
+          ...lastMessage,
+          content: lastMessage.content + chunk
+        };
+        
+        return { ...s, messages: newMessages, lastUsedDate: Date.now() };
+      })
+    };
+  }),
+  clearActiveSession: () => set((state) => {
+    if (!state.activeSessionId) return state;
+    return {
+      sessions: state.sessions.map(s => 
+        s.id === state.activeSessionId 
+          ? { ...s, messages: [], lastUsedDate: Date.now() } 
+          : s
+      )
+    };
+  }),
+  isGenerating: false,
+  setIsGenerating: (val) => set({ isGenerating: val }),
+  abortController: null,
+  hasLoadedHistory: false,
+  setHasLoadedHistory: (val) => set({ hasLoadedHistory: val }),
   hasUnread: false,
   setHasUnread: (value) => set({ hasUnread: value }),
+
+
+  sendMessage: async (input: string) => {
+    const state = get();
+    if (state.isGenerating) return;
+    if (!input.trim() || !state.selectedAgentId) return;
+
+    const activeAgent = state.agents.find(a => a.id === state.selectedAgentId);
+    if (!activeAgent) return;
+
+    let sessionId = state.activeSessionId;
+    let isFirstMessage = false;
+
+    if (!sessionId) {
+      sessionId = state.createSession(state.selectedAgentId);
+      state.updateSession(sessionId, { isGeneratingTitle: true });
+      isFirstMessage = true;
+    } else {
+      const currentSession = state.sessions.find(s => s.id === sessionId);
+      if (currentSession && currentSession.messages.length === 0) {
+        state.updateSession(sessionId, { isGeneratingTitle: true });
+        isFirstMessage = true;
+      }
+    }
+
+    const userMessage: ChatMessage = { role: 'user', content: input };
+    const currentSession = state.sessions.find(s => s.id === sessionId);
+    const newMessages = [...(currentSession?.messages || []), userMessage];
+
+    state.setActiveSession(sessionId);
+    state.addMessageToActiveSession(userMessage);
+    state.setIsGenerating(true);
+
+    if (isFirstMessage) {
+      setTimeout(async () => {
+        try {
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (activeAgent.apiKey && activeAgent.apiKey.trim() !== '') {
+            headers['Authorization'] = `Bearer ${activeAgent.apiKey.trim()}`;
+          }
+          const titlePayload: any = {
+            model: activeAgent.modelName.trim(),
+            messages: [{ role: 'system', content: 'Extract the core technical topic from the following user prompt. Generate a concise title (max 5 words). Do not use quotes, punctuation, or sarcasm. Be strictly objective.' }, { role: 'user', content: input }]
+          };
+          if (activeAgent.type === 'local') {
+            titlePayload.keep_alive = 0;
+          }
+
+          console.info("[Network] Dispatching auto-title request to:", activeAgent.endpoint.trim());
+          const titleResponse = await fetch(activeAgent.endpoint.trim(), {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(titlePayload),
+            signal: AbortSignal.timeout(10000)
+          });
+          if (titleResponse.ok) {
+            const titleData = await titleResponse.json();
+            let newTitle = titleData.choices?.[0]?.message?.content || titleData.message?.content || 'New Chat';
+            newTitle = newTitle.replace(/["']/g, '').trim();
+            if (sessionId) {
+              get().updateSession(sessionId, { title: newTitle, isGeneratingTitle: false });
+            }
+          } else {
+            if (sessionId) get().updateSession(sessionId, { isGeneratingTitle: false });
+          }
+        } catch (e) {
+          console.error("Auto-titling failed", e);
+          if (sessionId) get().updateSession(sessionId, { isGeneratingTitle: false });
+        }
+      }, 0);
+    }
+
+    const abortController = new AbortController();
+    set({ abortController });
+
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (activeAgent.apiKey && activeAgent.apiKey.trim() !== '') {
+        headers['Authorization'] = `Bearer ${activeAgent.apiKey.trim()}`;
+      }
+
+      const payload: any = {
+        model: activeAgent.modelName.trim(),
+        messages: newMessages,
+        stream: true
+      };
+      
+      if (activeAgent.type === 'local') {
+        payload.keep_alive = 0;
+        console.info("[Agent Lifecycle] Waking up local model. Expect cold start delay...");
+      }
+
+      console.info("[Network] Dispatching generation request to:", activeAgent.endpoint.trim());
+      const response = await fetch(activeAgent.endpoint.trim(), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+        signal: abortController.signal
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText}`);
+      }
+
+      if (!response.body) throw new Error("No response body");
+
+      get().addMessageToActiveSession({ role: 'assistant', content: '' });
+      console.info("[Agent Lifecycle] Stream started. Model loaded in RAM.");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      // Ollama streams JSON objects separated by newline. OpenAI streams `data: {...}` separated by newline.
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split('\n');
+        buffer = parts.pop() || '';
+        
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line || line === 'data: [DONE]') continue;
+          
+          let jsonStr = line;
+          if (line.startsWith('data: ')) {
+            jsonStr = line.replace('data: ', '');
+          }
+          
+          try {
+            const data = JSON.parse(jsonStr);
+            const contentChunk = data.choices?.[0]?.delta?.content || data.message?.content || '';
+            if (contentChunk) {
+              get().appendMessageChunkToActiveSession(contentChunk);
+            }
+          } catch (e) {
+            // Ignore incomplete JSON chunks, though they should be complete per line.
+          }
+        }
+      }
+
+      const updatedState = get();
+      if (updatedState.activeWidget?.type !== 'agent') {
+        updatedState.setHasUnread(true);
+        new Audio('/ping.mp3').play().catch(() => {});
+      }
+      if (activeAgent.type === 'local') {
+        console.info("[Agent Lifecycle] Stream complete. Ollama auto-unloading model...");
+      }
+    } catch (error: any) {
+      if (activeAgent.type === 'local') {
+        console.error("[Agent Lifecycle] Stream aborted/failed. Memory released.");
+      }
+      if (error.name !== 'AbortError') {
+        get().addMessageToActiveSession({ role: 'assistant', content: `Error: ${error.message || error}` });
+      }
+    } finally {
+      const finalState = get();
+      finalState.setIsGenerating(false);
+      set({ abortController: null });
+      invoke('save_history', { payload: JSON.stringify(finalState.sessions) }).catch(e => console.error("Failed to save history", e));
+    }
+  },
 
   agents: [{
     id: 'default-local',

@@ -70,7 +70,7 @@ impl PtyManager {
                         let data = String::from_utf8_lossy(&buf[..n]).to_string();
                         let _ = app_handle.emit(&format!("pty-read-{}", id_clone), data);
                     }
-                    Ok(_) => break, // EOF
+                    Ok(_) => break,  // EOF
                     Err(_) => break, // Error or closed
                 }
             }
@@ -82,7 +82,8 @@ impl PtyManager {
     pub fn write(&self, id: &str, data: String) -> Result<(), String> {
         let mut sessions = self.sessions.lock().unwrap();
         if let Some(session) = sessions.get_mut(id) {
-            session.writer
+            session
+                .writer
                 .write_all(data.as_bytes())
                 .map_err(|e| e.to_string())?;
             session.writer.flush().map_err(|e| e.to_string())?;
@@ -93,7 +94,8 @@ impl PtyManager {
     pub fn resize(&self, id: &str, rows: u16, cols: u16) -> Result<(), String> {
         let sessions = self.sessions.lock().unwrap();
         if let Some(session) = sessions.get(id) {
-            session.master
+            session
+                .master
                 .resize(PtySize {
                     rows,
                     cols,

@@ -1,8 +1,8 @@
+use serde::Serialize;
 use std::fs::OpenOptions;
 use std::io::Write;
-use tauri::{AppHandle, Manager, Emitter};
-use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Clone, Serialize)]
 pub struct LogPayload {
@@ -19,7 +19,7 @@ pub fn log_debug_event(app_handle: &AppHandle, level: &str, source: &str, messag
     } else {
         "0".to_string()
     };
-    
+
     // Write to file
     if let Ok(log_dir) = app_handle.path().app_log_dir() {
         let _ = std::fs::create_dir_all(&log_dir);
@@ -29,7 +29,7 @@ pub fn log_debug_event(app_handle: &AppHandle, level: &str, source: &str, messag
             let _ = file.write_all(log_line.as_bytes());
         }
     }
-    
+
     // Emit to frontend
     let payload = LogPayload {
         timestamp: timestamp_ms,
