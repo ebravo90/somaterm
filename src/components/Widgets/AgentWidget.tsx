@@ -350,7 +350,7 @@ function HistoryItem({
               <path d="M9 10.5V7a3 3 0 0 1 6 0v3.5l2 4.5H7l2-4.5z"></path>
             </svg>
           )}
-          {session.isGeneratingTitle ? (
+          {(session.title === 'New Chat' && session.messages.length > 0) ? (
             <div className="flex items-center gap-[2px] h-5 px-1">
               <div className="w-1 h-1 bg-soma-text-muted rounded-full animate-piston-1"></div>
               <div className="w-1 h-1 bg-soma-text-muted rounded-full animate-piston-2"></div>
@@ -441,6 +441,17 @@ export function AgentWidget() {
   const [tab, setTab] = useState<'chat' | 'history' | 'settings'>('chat');
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  
+  const handleScroll = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const threshold = 50;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+    setIsScrolledUp(!isNearBottom);
+  };
+
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -567,8 +578,10 @@ export function AgentWidget() {
   const currentMessages = currentSession?.messages || [];
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentMessages]);
+    if (!isScrolledUp) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [currentMessages, isScrolledUp]);
 
   useEffect(() => {
     const unlistenPromise = import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
@@ -718,14 +731,20 @@ export function AgentWidget() {
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-4">
+            <div 
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto p-4 space-y-4 pb-4 relative"
+            >
               {currentMessages.length === 0 && (
                 <div className="hidden @[250px]:block text-center text-soma-text-muted mt-10">
                   <p>Send a message to start interacting with {agents.find(a => a.id === selectedAgentId)?.displayName || 'the agent'}.</p>
                 </div>
               )}
-              {currentMessages.map((msg, i) => (
-                <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              {currentMessages.map((msg, i) => {
+                if (msg.role === 'assistant' && msg.content.length === 0) return null;
+                return (
+                  <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div className={`max-w-[90%] p-3 rounded-lg break-words overflow-hidden ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
                     {renderMessageContent(msg.content)}
                   </div>
@@ -735,8 +754,9 @@ export function AgentWidget() {
                     </div>
                   )}
                 </div>
-              ))}
-              {isGenerating && (
+                );
+              })}
+              {isGenerating && currentMessages.length > 0 && (currentMessages[currentMessages.length - 1].role === 'user' || (currentMessages[currentMessages.length - 1].role === 'assistant' && currentMessages[currentMessages.length - 1].content.length === 0)) && (
                 <div className="flex items-start">
                   <div className="max-w-[90%] p-3 rounded-lg bg-soma-border text-soma-text animate-pulse">
                     Thinking...
@@ -744,6 +764,20 @@ export function AgentWidget() {
                 </div>
               )}
               <div ref={messagesEndRef} />
+              
+              {isScrolledUp && isGenerating && (
+                <div className="sticky bottom-2 left-0 right-0 flex justify-center mt-4">
+                  <button 
+                    onClick={() => {
+                      setIsScrolledUp(false);
+                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className="bg-soma-accent text-white px-3 py-1 rounded-full text-xs shadow-lg hover:bg-soma-accent/80 transition-colors cursor-pointer"
+                  >
+                    ↓ New messages
+                  </button>
+                </div>
+              )}
             </div>
             <div className="p-4 pt-0 shrink-0 flex flex-col gap-2 relative">
               <div className="flex items-center gap-2">
