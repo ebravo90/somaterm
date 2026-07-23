@@ -20,7 +20,7 @@ impl PtyManager {
         }
     }
 
-    pub fn spawn(&self, app_handle: AppHandle, id: String) -> Result<(), String> {
+    pub fn spawn(&self, app_handle: AppHandle, id: String, rows: u16, cols: u16) -> Result<(), String> {
         let mut sessions = self.sessions.lock().unwrap();
         if sessions.contains_key(&id) {
             return Ok(());
@@ -30,14 +30,15 @@ impl PtyManager {
 
         let pty_pair = pty_system
             .openpty(PtySize {
-                rows: 24,
-                cols: 80,
+                rows,
+                cols,
                 pixel_width: 0,
                 pixel_height: 0,
             })
             .map_err(|e| e.to_string())?;
 
-        let cmd = CommandBuilder::new(Self::default_shell());
+        let mut cmd = CommandBuilder::new(Self::default_shell());
+        cmd.env("TERM", "xterm-256color");
 
         // Spawn the shell process
         let _child = pty_pair

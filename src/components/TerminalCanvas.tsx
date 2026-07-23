@@ -148,17 +148,10 @@ export function TerminalCanvas({ id }: { id: string }) {
           });
         });
 
-        // Spawn the shell process on mount
-        await invoke('spawn_pty', { id });
-        
-        // Immediately sync dimensions after spawn
-        if (term.current) {
-          invoke('resize_pty', {
-            id,
-            rows: term.current.rows,
-            cols: term.current.cols,
-          }).catch(console.error);
-        }
+        // Spawn the shell process on mount with initial dimensions
+        const rows = term.current?.rows || 24;
+        const cols = term.current?.cols || 80;
+        await invoke('spawn_pty', { id, rows, cols });
       } catch (e) {
         console.error("IPC Error:", e);
         setError(String(e));

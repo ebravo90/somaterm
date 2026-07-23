@@ -211,11 +211,13 @@ pub fn resize_pty(
 #[tauri::command]
 pub fn spawn_pty(
     id: String,
+    rows: u16,
+    cols: u16,
     app_handle: tauri::AppHandle,
     pty: State<'_, Mutex<PtyManager>>,
 ) -> Result<(), String> {
     let pty_manager = pty.lock().unwrap();
-    pty_manager.spawn(app_handle, id)
+    pty_manager.spawn(app_handle, id, rows, cols)
 }
 
 #[tauri::command]
