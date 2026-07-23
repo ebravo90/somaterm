@@ -40,3 +40,10 @@ You are strictly bound by a Test-Driven / Post-Implementation Testing workflow. 
    - You must read the error logs, debug your implementation (or the test itself), and re-run the suite until you achieve a 100% pass rate.
 4. **Integration:** 
    - Only when the entire test suite is green are you authorized to commit both the feature code and the generated test files, and push them to the repository.
+
+# [ANTI-TAMPERING & INTEGRITY PROTOCOL]
+You are strictly prohibited from engaging in "Reward Hacking" or "Specification Gaming" to force a failing test to pass.
+1. **Immutable Assertions:** Once a test is written to verify a specific behavior, you CANNOT modify, remove, or comment out its core assertions (`expect` statements) just because the test is failing.
+2. **Fix the Code, Not the Test:** If a test fails, your focus must be entirely on debugging and fixing the implementation code (the application logic).
+3. **Valid Test Modifications:** You may only modify a failing test IF AND ONLY IF you determine the test itself was fundamentally written wrong (e.g., querying the wrong DOM selector). In such cases, you must add a comment above the modified test explaining exactly why the test logic was flawed.
+4. **Flaky Tests & Synchronization:** If a test fails due to a race condition or asynchronous rendering (flakiness), you must solve the underlying synchronization issue using proper Web-First auto-retrying assertions (e.g., `expect(locator).toBeVisible()`). Do not rely on arbitrary `waitForTimeout` delays unless mocking complex external events.
