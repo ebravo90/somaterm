@@ -40,6 +40,32 @@ impl PtyManager {
         let mut cmd = CommandBuilder::new(Self::default_shell());
         cmd.env("TERM", "xterm-256color");
 
+        #[cfg(target_os = "macos")]
+        {
+            let current_path = std::env::var("PATH").unwrap_or_default();
+            let home = std::env::var("HOME").unwrap_or_default();
+            
+            let mut paths = vec![
+                "/opt/homebrew/bin".to_string(),
+                "/opt/homebrew/sbin".to_string(),
+                "/usr/local/bin".to_string(),
+                "/usr/local/sbin".to_string(),
+            ];
+            
+            if !home.is_empty() {
+                paths.push(format!("{}/.pyenv/shims", home));
+                paths.push(format!("{}/.rbenv/shims", home));
+                paths.push(format!("{}/.cargo/bin", home));
+                paths.push(format!("{}/.fnm", home));
+            }
+            
+            if !current_path.is_empty() {
+                paths.push(current_path);
+            }
+            
+            cmd.env("PATH", paths.join(":"));
+        }
+
         // Spawn the shell process
         let _child = pty_pair
             .slave
