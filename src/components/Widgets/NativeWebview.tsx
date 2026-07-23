@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useAppStore } from '../../store/useAppStore';
 
 interface NativeWebviewProps {
@@ -59,34 +60,43 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
       }
     };
 
+    let unlistenResize: (() => void) | null = null;
     let observer: ResizeObserver | null = null;
     let animationFrameId: number | null = null;
 
-    if (containerRef.current) {
-      observer = new ResizeObserver((entries) => {
-        const entry = entries[0];
-        if (entry) {
-          if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-          }
-          animationFrameId = requestAnimationFrame(() => {
-            syncWebview(entry.target.getBoundingClientRect());
-          });
+    const triggerSync = () => {
+      if (containerRef.current) {
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
         }
-      });
+        animationFrameId = requestAnimationFrame(() => {
+          if (containerRef.current) {
+            syncWebview(containerRef.current.getBoundingClientRect());
+          }
+        });
+      }
+    };
+
+    if (containerRef.current) {
+      observer = new ResizeObserver(triggerSync);
       observer.observe(containerRef.current);
-      
-      // Initial sync
-      syncWebview(containerRef.current.getBoundingClientRect());
+      triggerSync(); // Initial sync
     }
 
+    // Listen to explicit OS window resizes (maximize, restore, etc.)
+    getCurrentWindow().onResized(triggerSync).then(unlisten => {
+      unlistenResize = unlisten;
+    }).catch(console.error);
+
+    // Also listen to standard DOM resize as a fallback
+    window.addEventListener('resize', triggerSync);
+
     return () => {
-      if (observer) {
-        observer.disconnect();
-      }
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
+      if (observer) observer.disconnect();
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (unlistenResize) unlistenResize();
+      window.removeEventListener('resize', triggerSync);
+
       // Hide webview instead of destroying it so audio persists
       invoke('hide_webview', { id }).catch(console.error);
       isMounted.current = false;
