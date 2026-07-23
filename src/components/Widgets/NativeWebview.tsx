@@ -95,7 +95,7 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
   }, [id, isSettingsOpen]); // Re-sync when settings toggle so it adjusts to visibility
 
   return (
-    <div className={`@container flex flex-col h-full w-full pt-8 ${isSettingsOpen ? 'hidden' : ''}`}>
+    <div className={`@container flex flex-col h-full max-h-full overflow-hidden w-full pt-8 ${isSettingsOpen ? 'hidden' : ''}`}>
       <div className="flex-1 relative w-full min-h-0 bg-transparent">
         <div 
           ref={containerRef} 

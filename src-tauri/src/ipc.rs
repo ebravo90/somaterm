@@ -246,7 +246,7 @@ pub fn create_webview(
 
     let url_parsed = url.parse().map_err(|e| format!("Invalid URL: {}", e))?;
     let builder = tauri::WebviewBuilder::new(&id, tauri::WebviewUrl::External(url_parsed))
-        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .user_agent("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
         .devtools(true)
         .initialization_script(&r#"
             window.__SOMATERM_SILENCE_STRIKES__ = 0;
