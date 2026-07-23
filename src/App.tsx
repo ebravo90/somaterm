@@ -45,17 +45,22 @@ function App() {
       message: 'Somaterm UI initialized successfully.'
     });
 
-    const unlistenClose = getCurrentWindow().onCloseRequested(async (event) => {
-      event.preventDefault();
-      
-      const store = useAppStore.getState();
-      
-      if (store.abortController) {
-        store.abortController.abort();
-      }
-      
-      await exit(0);
-    });
+    let unlistenClose: Promise<() => void> | null = null;
+    try {
+      unlistenClose = getCurrentWindow().onCloseRequested(async (event) => {
+        event.preventDefault();
+        
+        const store = useAppStore.getState();
+        
+        if (store.abortController) {
+          store.abortController.abort();
+        }
+        
+        await exit(0);
+      });
+    } catch (err) {
+      console.warn('getCurrentWindow not available in this environment');
+    }
 
     const unlistenUrl = listen('webview-url-changed', (event) => {
       const payload = event.payload as { id: string, url: string };
@@ -166,21 +171,23 @@ function App() {
     }, 5000);
     
     return () => {
-      unlistenUrl.then(f => f());
-      unlistenHibernated.then(f => f());
-      unlistenHeartbeat.then(f => f());
-      unlistenSettings.then(f => f());
-      unlistenNewTerminal.then(f => f());
-      unlistenCloseTerminal.then(f => f());
-      unlistenClearBuffer.then(f => f());
-      unlistenToggleWeb.then(f => f());
-      unlistenToggleAgent.then(f => f());
-      unlistenClearContext.then(f => f());
-      unlistenDocs.then(f => f());
-      unlistenNavUrl.then(f => f());
-      unlistenFocusTerminal.then(f => f());
-      unlistenLog.then(f => f());
-      unlistenClose.then(f => f());
+      unlistenUrl.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenHibernated.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenHeartbeat.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenSettings.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenNewTerminal.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenCloseTerminal.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenClearBuffer.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenToggleWeb.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenToggleAgent.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenClearContext.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenDocs.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenNavUrl.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenFocusTerminal.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      unlistenLog.then(f => { try { const p = f() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      if (unlistenClose) {
+        unlistenClose.then(unlisten => { try { const p = unlisten() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
+      }
       clearInterval(audioTimeout);
     };
   }, []);

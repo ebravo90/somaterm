@@ -7,6 +7,13 @@ export const mockTauriIpc = () => {
       (window as any)._mockCallbacks[id] = callback;
       return id;
     },
+    metadata: { currentWindow: { label: "main" } },
+    plugins: {
+      event: {
+        unlisten: async () => {},
+        listen: async () => 1
+      }
+    },
     invoke: async (cmd: string, args: any) => {
       console.log(`[Mock Tauri IPC] invoked: ${cmd}`, args);
       if (cmd === 'spawn_pty') {
@@ -56,6 +63,9 @@ export const mockTauriIpc = () => {
       }
     }
   };
+  
+  (window as any).__TAURI_INTERNALS__.registerListener = () => {};
+  (window as any).__TAURI_INTERNALS__.unregisterListener = () => {};
   
   // Some versions of Tauri core use __TAURI_IPC__
   (window as any).__TAURI_IPC__ = (window as any).__TAURI_INTERNALS__.invoke;

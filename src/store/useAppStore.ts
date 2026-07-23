@@ -193,7 +193,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sanitizedUrl = `https://${sanitizedUrl}`;
     }
     const finalUrl = normalizeUrl(sanitizedUrl);
-    const id = Date.now().toString();
+    const id = Date.now().toString() + '-' + Math.random().toString(36).substring(7);
     set((state) => ({ 
       webViews: [...state.webViews, { 
         id, 
@@ -594,7 +594,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         get().addLog({ level: 'ERROR', source: 'Agent', message: '[Agent Lifecycle] Stream aborted/failed. Memory released.' });
       }
       if (error.name !== 'AbortError') {
-        get().addMessageToActiveSession({ role: 'assistant', content: `Error: ${error.message || error}` });
+        console.error("FETCH ERROR", error); get().addMessageToActiveSession({ role: 'assistant', content: `Error: ${error.message || error}` });
       }
     } finally {
       const finalState = get();

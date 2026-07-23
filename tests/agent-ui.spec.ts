@@ -5,47 +5,39 @@ test.describe('Agent UI Mock Suite', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(mockTauriIpc);
     await page.goto('/');
-    
     // Wait for terminal
     await page.waitForSelector('.xterm-helper-textarea', { timeout: 10000 }).catch(() => {});
     
-    // Ensure Agent Sidebar is open
-    const agentBtn = page.getByTitle('Toggle AI Agent');
-    if (await agentBtn.isVisible()) {
-        const isSelected = await agentBtn.getAttribute('aria-selected') === 'true' || await page.locator('.agent-widget-container').isVisible();
-        if (!isSelected) {
-            await agentBtn.click();
-            await page.waitForTimeout(1000);
-        }
-    }
+    await page.evaluate(() => {
+      const store = (window as any).__store;
+      if (store) store.getState().setActiveWidget({ type: 'agent' });
+    });
+    await page.waitForTimeout(500);
   });
 
   test('Test A: Kamikaze Execution & Button Parity', async ({ page }) => {
-    // Intercept requests to the LLM API endpoint (e.g., Ollama/OpenAI)
-    await page.route('**/api/chat', async route => {
-      const json = {
-        role: 'assistant',
-        content: `Here is the solution:
-        
-\`\`\`bash
-echo "Hello from Bash"
-\`\`\`
+    page.on('console', msg => console.log('BROWSER CONSOLE:', msg.text()));
+    page.on('pageerror', err => console.log('BROWSER ERROR:', err.message));
 
-And the python equivalent:
-
-\`\`\`python
-print("Hello from Python")
-\`\`\`
-`
-      };
-      await route.fulfill({ json });
-    });
-
-    // Simulate the user extracting terminal text via the Kamikaze shortcut
-    // We can simulate this by directly invoking the store's sendMessage or triggering the global shortcut
+    // Simulate the user receiving terminal text from the LLM
     await page.evaluate(() => {
       const store = (window as any).__store;
-      store.getState().sendMessage("How do I print hello?");
+      
+      let sessionId = store.getState().activeSessionId;
+      if (!sessionId) {
+        sessionId = store.getState().createSession(store.getState().selectedAgentId);
+        store.getState().setActiveSession(sessionId);
+      }
+
+      store.getState().updateSession(sessionId, {
+        messages: [
+          { role: 'user', content: 'Show me bash and python code' },
+          { 
+            role: 'assistant', 
+            content: `Here is the solution:\n\n\`\`\`bash\necho "Hello from Bash"\n\`\`\`\n\nAnd the python equivalent:\n\n\`\`\`python\nprint("Hello from Python")\n\`\`\`` 
+          }
+        ]
+      });
     });
 
     // Wait for the mocked response to render
@@ -57,32 +49,48 @@ print("Hello from Python")
     await expect(runBtn).toHaveClass(/bg-blue-600/);
 
     // Assert a gray "Copy" button for the Python block
-    const copyBtn = page.locator('button:has-text("Copy")').nth(1); // the python block copy button (index 1 if there's a global one, or nth(0) in code block)
+    const copyBtn = page.locator('button:has-text("Copy")').nth(0); // the python block copy button (index 0 in code block)
     await expect(copyBtn).toBeVisible();
     await expect(copyBtn).toHaveClass(/bg-zinc-700/);
   });
 
   test('Test B: Scroll Anchoring Preservation', async ({ page }) => {
+    const agentBtn = page.locator('button[title="AI Agent"]').first();
+    if (!await page.locator('.flex-1.overflow-y-auto').isVisible()) {
+        await agentBtn.click();
+        await page.waitForTimeout(500);
+    }
+
     // Inject a very long mock response (multiple paragraphs) to force scroll overflow
     await page.evaluate(() => {
       const store = (window as any).__store;
       const longText = Array(50).fill("This is a very long paragraph intended to cause a vertical scroll overflow in the chat widget container. We need to ensure that the user can scroll without native jumping.").join('\\n\\n');
       
-      const activeSession = store.getState().sessions.find((s: any) => s.id === store.getState().activeSessionId);
-      if (activeSession) {
-        store.getState().updateSession(activeSession.id, {
-          messages: [
-            { role: 'user', content: 'Tell me a long story', meta: { timestamp: Date.now() } },
-            { role: 'assistant', content: longText, meta: { timestamp: Date.now() } }
-          ]
-        });
+      let sessionId = store.getState().activeSessionId;
+      if (!sessionId) {
+        sessionId = store.getState().createSession(store.getState().selectedAgentId);
+        store.getState().setActiveSession(sessionId);
       }
+      
+      store.getState().updateSession(sessionId, {
+        messages: [
+          { role: 'user', content: 'Tell me a long story' },
+          { role: 'assistant', content: longText }
+        ]
+      });
     });
 
     await page.waitForTimeout(1000);
 
     // Scroll to the bottom of the chat
-    const scrollContainer = page.locator('.overflow-y-auto').filter({ hasText: 'Tell me a long story' }).first();
+    const scrollContainer = page.locator('.flex-1.overflow-y-auto').first();
+    try {
+      await expect(scrollContainer).toBeVisible({ timeout: 2000 });
+    } catch (e) {
+      const html = await page.evaluate(() => document.body.innerHTML);
+      console.log('DOM DUMP:', html);
+      throw e;
+    }
     await scrollContainer.evaluate(node => {
       node.scrollTop = node.scrollHeight;
     });

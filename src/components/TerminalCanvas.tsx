@@ -185,7 +185,7 @@ export function TerminalCanvas({ id }: { id: string }) {
       resizeObserver.disconnect();
       window.removeEventListener('somaterm-clear-buffer', clearHandler);
       if (unlistenPromise) {
-        unlistenPromise.then(unlisten => unlisten());
+        unlistenPromise.then(unlisten => { try { const p = unlisten() as any; if (p && p.catch) p.catch(() => {}); } catch(e){} }).catch(() => {});
       }
       if (terminalRef.current) {
         terminalRef.current.removeEventListener('mouseup', handleMouseUp);

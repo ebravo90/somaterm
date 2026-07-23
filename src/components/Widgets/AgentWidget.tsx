@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import type { AgentProfile, Session } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
@@ -551,14 +551,7 @@ export function AgentWidget() {
     setIsScrolledUp(!isNearBottom);
   };
 
-  useLayoutEffect(() => {
-    const container = scrollContainerRef.current;
-    if (container && isScrolledUp) {
-      if (Math.abs(container.scrollTop - lastScrollPos.current) > 2) {
-        container.scrollTop = lastScrollPos.current;
-      }
-    }
-  });
+
 
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
@@ -691,21 +684,7 @@ export function AgentWidget() {
     }
   }, [currentMessages, isScrolledUp]);
 
-  useEffect(() => {
-    const unlistenPromise = import('@tauri-apps/api/window').then(({ getCurrentWindow }) => {
-      return getCurrentWindow().onCloseRequested(() => {
-        const store = useAppStore.getState();
-        const activeAgent = store.agents.find(a => a.id === store.selectedAgentId);
-        if (activeAgent) {
-          store.teardownAgentContext(activeAgent);
-        }
-      });
-    });
 
-    return () => {
-      unlistenPromise.then(unlisten => unlisten());
-    };
-  }, []);
 
   const store = useAppStore();
   const handleSend = async () => {
