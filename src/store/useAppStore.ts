@@ -381,22 +381,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     let newSessions = state.sessions;
     if (state.activeSessionId) {
       newSessions = state.sessions.map(session => {
-        if (session.id === state.activeSessionId && session.messages.length > 0) {
-          const lastIndex = session.messages.length - 1;
-          const lastMessage = session.messages[lastIndex];
-          if (lastMessage.role === 'assistant') {
-            const backtickCount = (lastMessage.content.match(/```/g) || []).length;
-            if (backtickCount % 2 !== 0) {
-              const updatedMessages = [...session.messages];
-              updatedMessages[lastIndex] = {
-                ...lastMessage,
-                content: lastMessage.content + '\n```\n'
-              };
-              return { ...session, messages: updatedMessages };
+        let updatedSession = session;
+        if (session.id === state.activeSessionId) {
+          if (session.messages.length > 0) {
+            const lastIndex = session.messages.length - 1;
+            const lastMessage = session.messages[lastIndex];
+            if (lastMessage.role === 'assistant') {
+              const backtickCount = (lastMessage.content.match(/```/g) || []).length;
+              if (backtickCount % 2 !== 0) {
+                const updatedMessages = [...session.messages];
+                updatedMessages[lastIndex] = {
+                  ...lastMessage,
+                  content: lastMessage.content + '\n```\n'
+                };
+                updatedSession = { ...updatedSession, messages: updatedMessages };
+              }
             }
           }
+          if (updatedSession.title === 'New Chat' || updatedSession.title === '') {
+            updatedSession = { ...updatedSession, title: 'Untitled' };
+          }
         }
-        return session;
+        return updatedSession;
       });
     }
 

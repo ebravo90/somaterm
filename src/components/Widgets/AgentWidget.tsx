@@ -1,10 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import type { AgentProfile, Session } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [isSent, setIsSent] = useState(false);
+  const isRunnable = ['bash', 'sh', 'zsh'].includes(lang?.toLowerCase());
 
   const handleRun = async () => {
     try {
@@ -27,20 +30,37 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
     }
   };
 
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setIsSent(true);
+    setTimeout(() => setIsSent(false), 1500);
+  };
+
+  const baseBtnClasses = "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors inline-flex items-center justify-center cursor-pointer";
+
   return (
     <div className="my-2 bg-[#1e1e1e] rounded overflow-hidden border border-soma-border">
       <div className="flex justify-between items-center px-3 py-1 bg-[#2d2d2d] text-xs text-gray-400">
         <span>{lang || 'code'}</span>
-        <button 
-          onClick={handleRun}
-          className={`transition-colors px-2 py-0.5 rounded cursor-pointer ${
-            isSent 
-              ? 'bg-green-600 text-white' 
-              : 'bg-soma-accent hover:text-white text-white'
-          }`}
-        >
-          {isSent ? 'Sent! 🚀' : 'Run in Terminal'}
-        </button>
+        {isRunnable ? (
+          <button 
+            onClick={handleRun}
+            className={`${baseBtnClasses} ${
+              isSent ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'
+            }`}
+          >
+            {isSent ? 'Sent! 🚀' : 'Run in Terminal'}
+          </button>
+        ) : (
+          <button 
+            onClick={handleCopy}
+            className={`${baseBtnClasses} ${
+              isSent ? 'bg-green-600 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-100'
+            }`}
+          >
+            {isSent ? 'Copied!' : 'Copy'}
+          </button>
+        )}
       </div>
       <pre className="p-3 text-sm overflow-x-auto whitespace-pre-wrap">
         <code>{code}</code>
@@ -48,6 +68,82 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
     </div>
   );
 }
+
+function GlobalCopyButton({ content }: { content: string }) {
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(content);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 1500);
+  };
+
+  return (
+    <button 
+      type="button"
+      onClick={handleCopy}
+      className="mt-1 flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors cursor-pointer relative z-10"
+    >
+      {isCopied ? (
+        <>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          Copied
+        </>
+      ) : (
+        <>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          Copy
+        </>
+      )}
+    </button>
+  );
+}
+
+const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: any }) {
+  return (
+    <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[90%] p-3 rounded-lg break-words overflow-hidden ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
+        <div className={msg.role === 'assistant' ? "prose prose-sm prose-invert max-w-none" : ""}>
+          <Markdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-6 mb-4" {...props} />,
+              h2: ({node, ...props}) => <h2 className="text-xl font-semibold mt-5 mb-3" {...props} />,
+              h3: ({node, ...props}) => <h3 className="text-lg font-medium mt-4 mb-2" {...props} />,
+              p: ({node, ...props}) => <p className="mb-4 leading-relaxed" {...props} />,
+              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
+              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
+              code(props) {
+                const {children, className, node, ...rest} = props;
+                const match = /language-(\w+)/.exec(className || '');
+                return match ? (
+                  <CodeBlock lang={match[1]} code={String(children).replace(/\n$/, '')} />
+                ) : (
+                  <code {...rest} className={className}>
+                    {children}
+                  </code>
+                );
+              }
+            }}
+          >
+            {msg.content}
+          </Markdown>
+        </div>
+      </div>
+      {msg.role === 'assistant' && (
+        <GlobalCopyButton content={msg.content} />
+      )}
+      {msg.meta && (
+        <div className="text-[10px] text-gray-500 mt-1 pl-1">
+          {msg.meta}
+        </div>
+      )}
+    </div>
+  );
+});
+
 
 function AgentSettingsItem({
   agent,
@@ -350,7 +446,7 @@ function HistoryItem({
               <path d="M9 10.5V7a3 3 0 0 1 6 0v3.5l2 4.5H7l2-4.5z"></path>
             </svg>
           )}
-          {(session.title === 'New Chat' && session.messages.length > 0) ? (
+          {(session.title === 'New Chat' && session.isGeneratingTitle) ? (
             <div className="flex items-center gap-[2px] h-5 px-1">
               <div className="w-1 h-1 bg-soma-text-muted rounded-full animate-piston-1"></div>
               <div className="w-1 h-1 bg-soma-text-muted rounded-full animate-piston-2"></div>
@@ -442,15 +538,27 @@ export function AgentWidget() {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollPos = useRef(0);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   
-  const handleScroll = () => {
-    const container = scrollContainerRef.current;
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
     if (!container) return;
+    lastScrollPos.current = container.scrollTop;
+    
     const threshold = 50;
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
     setIsScrolledUp(!isNearBottom);
   };
+
+  useLayoutEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container && isScrolledUp) {
+      if (Math.abs(container.scrollTop - lastScrollPos.current) > 2) {
+        container.scrollTop = lastScrollPos.current;
+      }
+    }
+  });
 
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
@@ -579,7 +687,7 @@ export function AgentWidget() {
 
   useEffect(() => {
     if (!isScrolledUp) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
     }
   }, [currentMessages, isScrolledUp]);
 
@@ -625,20 +733,7 @@ export function AgentWidget() {
     });
   };
 
-  const renderMessageContent = (content: string) => {
-    const parts = content.split(/(```[\s\S]*?```)/g);
-    
-    return parts.map((part, index) => {
-      if (part.startsWith('```') && part.endsWith('```')) {
-        const lines = part.split('\n');
-        const lang = lines[0].slice(3).trim();
-        const code = lines.slice(1, -1).join('\n');
-        
-        return <CodeBlock key={index} lang={lang} code={code} />;
-      }
-      return <span key={index} className="whitespace-pre-wrap">{part}</span>;
-    });
-  };
+
 
   return (
     <div className="@container w-full h-full flex flex-col bg-soma-panel relative">
@@ -734,7 +829,8 @@ export function AgentWidget() {
             <div 
               ref={scrollContainerRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto p-4 space-y-4 pb-4 relative"
+              className="flex-1 overflow-y-auto p-4 space-y-4 pb-12 relative"
+              style={{ overflowAnchor: 'none' }}
             >
               {currentMessages.length === 0 && (
                 <div className="hidden @[250px]:block text-center text-soma-text-muted mt-10">
@@ -743,18 +839,7 @@ export function AgentWidget() {
               )}
               {currentMessages.map((msg, i) => {
                 if (msg.role === 'assistant' && msg.content.length === 0) return null;
-                return (
-                  <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`max-w-[90%] p-3 rounded-lg break-words overflow-hidden ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
-                    {renderMessageContent(msg.content)}
-                  </div>
-                  {msg.meta && (
-                    <div className="text-[10px] text-gray-500 mt-1 pl-1">
-                      {msg.meta}
-                    </div>
-                  )}
-                </div>
-                );
+                return <MessageBubble key={i} msg={msg} />;
               })}
               {isGenerating && currentMessages.length > 0 && (currentMessages[currentMessages.length - 1].role === 'user' || (currentMessages[currentMessages.length - 1].role === 'assistant' && currentMessages[currentMessages.length - 1].content.length === 0)) && (
                 <div className="flex items-start">
@@ -763,7 +848,7 @@ export function AgentWidget() {
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} style={{ overflowAnchor: 'auto' }} />
               
               {isScrolledUp && isGenerating && (
                 <div className="sticky bottom-2 left-0 right-0 flex justify-center mt-4">
