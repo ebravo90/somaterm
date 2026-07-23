@@ -12,6 +12,22 @@ export interface TerminalSession {
 export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string };
 export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying?: boolean, lastActiveAt: number };
 export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' | 'ERROR' | 'MEDIA' | 'SYSTEM', source: string, message: string };
+
+export interface AppSettings {
+  environment: {
+    useSystemPath: boolean;
+    defaultShell: string;
+  };
+  qa: {
+    logLevel: 'info' | 'debug' | 'error';
+    disableAnimations: boolean;
+  };
+  webManager: {
+    tabHibernationTimeout: number; // in minutes
+    showTokenTelemetry: boolean;
+  };
+}
+
 export interface AgentProfile {
   id: string;
   displayName: string;
@@ -129,6 +145,9 @@ interface AppState {
 
   isSettingsOpen: boolean;
   toggleSettings: () => void;
+  settings: AppSettings;
+  updateSettings: (category: keyof AppSettings, updates: Partial<any>) => void;
+  
   isDebugModeEnabled: boolean;
   setDebugMode: (enabled: boolean) => void;
   debugLogs: LogEntry[];
@@ -658,6 +677,31 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     set({ isSettingsOpen: willBeOpen });
   },
+  
+  settings: {
+    environment: {
+      useSystemPath: true,
+      defaultShell: 'zsh',
+    },
+    qa: {
+      logLevel: 'info',
+      disableAnimations: false,
+    },
+    webManager: {
+      tabHibernationTimeout: 5,
+      showTokenTelemetry: true,
+    }
+  },
+  updateSettings: (category, updates) => set((state) => ({
+    settings: {
+      ...state.settings,
+      [category]: {
+        ...state.settings[category],
+        ...updates
+      }
+    }
+  })),
+
   isDebugModeEnabled: false,
   setDebugMode: (enabled) => set({ isDebugModeEnabled: enabled }),
 
