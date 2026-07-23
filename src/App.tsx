@@ -315,7 +315,7 @@ function App() {
             width: `calc(${100 - terminalWidth}% - 4px)`,
             pointerEvents: isDraggingState ? 'none' : 'auto' 
           }}
-          className="h-full shrink-0"
+          className="h-full shrink-0 flex flex-col overflow-hidden min-h-0"
         >
           {activeWidget.type === 'webview' && activeWebId ? (
             <NativeWebview id={activeWebId} url={webViews.find(w => w.id === activeWebId)?.url || ''} />
