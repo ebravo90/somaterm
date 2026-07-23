@@ -35,7 +35,7 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
             y: rect.y, 
             width: rect.width, 
             height: rect.height,
-            heightOffset: 40.0
+            heightOffset: 0.0
           });
           isMounted.current = true;
         } catch (e) {
@@ -51,7 +51,7 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
             y: rect.y,
             width: rect.width,
             height: rect.height,
-            heightOffset: 40.0
+            heightOffset: 0.0
           });
         } catch (e) {
           console.error("Failed to update native webview:", e);
