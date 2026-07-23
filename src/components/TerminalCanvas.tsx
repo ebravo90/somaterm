@@ -88,6 +88,10 @@ export function TerminalCanvas({ id }: { id: string }) {
     });
     term.current.loadAddon(webLinksAddon);
 
+    term.current.onResize(({ cols, rows }) => {
+      invoke('resize_pty', { id, rows, cols }).catch(console.error);
+    });
+
     term.current.open(terminalRef.current);
     fitAddon.current.fit();
 
@@ -146,6 +150,15 @@ export function TerminalCanvas({ id }: { id: string }) {
 
         // Spawn the shell process on mount
         await invoke('spawn_pty', { id });
+        
+        // Immediately sync dimensions after spawn
+        if (term.current) {
+          invoke('resize_pty', {
+            id,
+            rows: term.current.rows,
+            cols: term.current.cols,
+          }).catch(console.error);
+        }
       } catch (e) {
         console.error("IPC Error:", e);
         setError(String(e));
@@ -161,14 +174,9 @@ export function TerminalCanvas({ id }: { id: string }) {
       resizeTimeout = setTimeout(() => {
         if (fitAddon.current && term.current) {
           fitAddon.current.fit();
-          // Inform Rust backend about new dimensions
-          invoke('resize_pty', {
-            id,
-            rows: term.current.rows,
-            cols: term.current.cols,
-          }).catch(console.error);
+          // fit() recalculates rows/cols and triggers onResize automatically
         }
-      }, 150);
+      }, 50);
     });
 
     resizeObserver.observe(terminalRef.current);
