@@ -439,6 +439,7 @@ pub fn webview_reload(window: tauri::Window, id: String) -> Result<(), String> {
 pub fn webview_open_devtools(window: tauri::Window, id: String) -> Result<(), String> {
     use tauri::Manager;
     if let Some(webview) = window.get_webview(&id) {
+        #[cfg(debug_assertions)]
         webview.open_devtools();
     }
     Ok(())
