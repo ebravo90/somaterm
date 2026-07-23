@@ -47,3 +47,10 @@ You are strictly prohibited from engaging in "Reward Hacking" or "Specification 
 2. **Fix the Code, Not the Test:** If a test fails, your focus must be entirely on debugging and fixing the implementation code (the application logic).
 3. **Valid Test Modifications:** You may only modify a failing test IF AND ONLY IF you determine the test itself was fundamentally written wrong (e.g., querying the wrong DOM selector). In such cases, you must add a comment above the modified test explaining exactly why the test logic was flawed.
 4. **Flaky Tests & Synchronization:** If a test fails due to a race condition or asynchronous rendering (flakiness), you must solve the underlying synchronization issue using proper Web-First auto-retrying assertions (e.g., `expect(locator).toBeVisible()`). Do not rely on arbitrary `waitForTimeout` delays unless mocking complex external events.
+
+# [VERSION CONTROL & PUSH DIRECTIVE]
+You are strictly forbidden from executing `git push` automatically after completing a task or fixing a test. 
+
+1. **Local Commits Only:** Once you finish an implementation, run the tests, and verify that the Playwright test suite passes at 100%, you are authorized to stage (`git add`) and commit (`git commit`) your changes locally. 
+2. **Explicit Push Consent:** You MUST NOT push code to any remote branch (e.g., `master`, `main`) under any circumstances, unless the user explicitly commands you to do so with phrases like "push to master" or "push the changes".
+3. **End of Task State:** Upon completing a task and committing locally, simply report your status, summarize the test results, and wait for the user's explicit next instruction.
