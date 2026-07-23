@@ -24,6 +24,8 @@ export interface AppSettings {
   };
   webManager: {
     tabHibernationTimeout: number; // in minutes
+  };
+  agents: {
     showTokenTelemetry: boolean;
   };
 }
@@ -689,6 +691,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
     webManager: {
       tabHibernationTimeout: 5,
+    },
+    agents: {
       showTokenTelemetry: true,
     }
   },

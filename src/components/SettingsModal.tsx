@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 
-type SettingsTab = 'Environment' | 'QA & Debug' | 'Web Manager';
+type SettingsTab = 'Environment' | 'QA & Debug' | 'Web Manager' | 'Agents';
 
 export const SettingsModal: React.FC = () => {
   const { isSettingsOpen, toggleSettings, isDebugModeEnabled, setDebugMode, settings, updateSettings } = useAppStore();
@@ -19,7 +19,7 @@ export const SettingsModal: React.FC = () => {
 
   if (!isSettingsOpen) return null;
 
-  const tabs: SettingsTab[] = ['Environment', 'QA & Debug', 'Web Manager'];
+  const tabs: SettingsTab[] = ['Environment', 'QA & Debug', 'Web Manager', 'Agents'];
 
   return (
     <div 
@@ -174,15 +174,25 @@ export const SettingsModal: React.FC = () => {
                           <span className="text-zinc-500 text-sm">min</span>
                         </div>
                       </div>
+                    </div>
+                  </section>
+                </div>
+              )}
 
+              {activeTab === 'Agents' && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <section>
+                    <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-6">LLM & Orchestration</h3>
+                    
+                    <div className="space-y-6">
                       <div className="flex items-center justify-between border-b border-zinc-800/50 pb-6">
                         <div className="pr-8">
                           <div className="text-zinc-200 font-medium">Show Token Telemetry</div>
-                          <div className="text-zinc-400 text-sm mt-1">Display an overlay of active authentication tokens within internal sub-frames.</div>
+                          <div className="text-zinc-400 text-sm mt-1">Display real-time telemetry overlay for LLM token consumption (prompt and completion tokens) across active agents.</div>
                         </div>
                         <Toggle 
-                          checked={settings.webManager.showTokenTelemetry} 
-                          onChange={(val) => updateSettings('webManager', { showTokenTelemetry: val })} 
+                          checked={settings.agents.showTokenTelemetry} 
+                          onChange={(val) => updateSettings('agents', { showTokenTelemetry: val })} 
                         />
                       </div>
                     </div>
