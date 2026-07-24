@@ -129,8 +129,11 @@ export const TerminalGrid: React.FC = () => {
     };
   }, [showBadge]);
 
-  const isSmallScreen = containerWidth < 600;
-  const visibleTerminals = isSmallScreen ? terminals.slice(0, 1) : terminals;
+  // Layout calculation via ResizeObserver to detect overflow
+  const MIN_TERMINAL_WIDTH = 200;
+  const maxVisibleTerminals = Math.max(1, Math.floor(containerWidth / MIN_TERMINAL_WIDTH));
+  
+  const visibleTerminals = terminals.slice(0, maxVisibleTerminals);
   const hiddenCount = terminals.length - visibleTerminals.length;
 
   const renderTerminal = (session: TerminalSession) => (
