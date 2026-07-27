@@ -11,7 +11,8 @@
     "allure:report": "allure generate allure-results --clean && allure open",
     "test:e2e:local": "wdio run wdio.conf.ts",
     "test:e2e:ci": "wdio run wdio.ci.conf.ts",
-    "dev:mock": "VITE_MOCK_TAURI=true vite"
+    "dev:mock": "VITE_MOCK_TAURI=true vite",
+    "prepare": "husky"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",
@@ -19,6 +20,7 @@
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.5",
+    "@tauri-apps/plugin-store": "^2.4.4",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
@@ -43,6 +45,8 @@
     "@wdio/spec-reporter": "^9.29.1",
     "allure-commandline": "^2.43.0",
     "autoprefixer": "^10.5.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.2.0",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.19",
     "tailwindcss": "^4.3.3",
@@ -50,5 +54,9 @@
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
     "webdriverio": "^9.30.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": "eslint --fix",
+    "*.{css,md}": "prettier --write"
   }
 }
