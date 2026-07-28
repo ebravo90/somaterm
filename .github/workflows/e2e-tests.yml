@@ -86,7 +86,9 @@ jobs:
       - name: Install Node dependencies
         run: npm install
       - name: Build UI and Tauri Binary
-        run: npm run build
+        run: |
+          npm run build
+          cd src-tauri && cargo build
       - name: Run WebdriverIO E2E Native Tests
         run: xvfb-run npm run test:e2e:ci
       - name: Fail Fast (Cancel Run)
