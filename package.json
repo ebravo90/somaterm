@@ -12,7 +12,10 @@
     "test:e2e:local": "start-server-and-test dev:mock http://127.0.0.1:5173 'wdio run wdio.conf.ts'",
     "test:e2e:ci": "wdio run wdio.ci.conf.ts",
     "dev:mock": "VITE_MOCK_TAURI=true vite",
-    "prepare": "husky"
+    "prepare": "husky",
+    "ci:status": "gh run list -L 5",
+    "ci:watch": "gh run watch",
+    "ci:logs": "gh run view --log-failed"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",
