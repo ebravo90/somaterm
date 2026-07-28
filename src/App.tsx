@@ -11,9 +11,12 @@ import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
 import { SettingsModal } from './components/SettingsModal';
 import { DebugConsole } from './components/DebugConsole';
 
+import { useSettingsStore } from './store/useSettingsStore';
+
 // Expose store for Playwright E2E testing
 if (import.meta.env.DEV) {
   (window as any).__store = useAppStore;
+  (window as any).__settingsStore = useSettingsStore;
 }
 
 function App() {
