@@ -17,7 +17,8 @@
     "ci:watch": "gh run watch",
     "ci:logs": "gh run view --log-failed",
     "ci:autofix": "gh run view --log-failed > ci_audit.md",
-    "ci:preflight": "timeout 90 gh run watch $(gh run list -L 1 --json databaseId -q '.[0].databaseId') || echo 'Pre-flight complete. Check web for long-running status.'"
+    "ci:preflight": "timeout 90 gh run watch $(gh run list -L 1 --json databaseId -q '.[0].databaseId') || echo 'Pre-flight complete. Check web for long-running status.'",
+    "release:push": "git push origin master --follow-tags"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",

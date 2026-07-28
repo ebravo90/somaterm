@@ -1,0 +1,58 @@
+name: CI Fast
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  static-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install Node dependencies
+        run: npm install
+      - name: Run Static Analysis
+        run: npm run lint && npx tsc -b
+      - name: Fail Fast (Cancel Run)
+        if: failure()
+        run: gh run cancel ${{ github.run_id }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  mocked-ui-tests:
+    needs: static-analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install Node dependencies
+        run: npm install
+      - name: Run WebdriverIO E2E Local/Mocked Tests
+        run: |
+          npm run dev:mock &
+          sleep 5
+          npm run test:e2e:local
+      - name: Fail Fast (Cancel Run)
+        if: failure()
+        run: gh run cancel ${{ github.run_id }}
+        env:
+          GH_TOKEN: ${{ github.token }}
