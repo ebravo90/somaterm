@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 
 type SettingsTab = 'Environment' | 'QA & Debug' | 'Web Manager' | 'Agents';
 
 export const SettingsModal: React.FC = () => {
-  const { isSettingsOpen, toggleSettings, isDebugModeEnabled, setDebugMode, settings, updateSettings } = useAppStore();
+  const { isSettingsOpen, toggleSettings, isDebugModeEnabled, setDebugMode } = useAppStore();
+  const settings = useSettingsStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>('Environment');
 
   useEffect(() => {
@@ -78,8 +80,8 @@ export const SettingsModal: React.FC = () => {
                           <div className="text-zinc-400 text-sm mt-1">Automatically inherit macOS GUI paths and user shims for terminal execution.</div>
                         </div>
                         <Toggle 
-                          checked={settings.environment.useSystemPath} 
-                          onChange={(val) => updateSettings('environment', { useSystemPath: val })} 
+                          checked={settings.useSystemPath} 
+                          onChange={(val) => settings.setUseSystemPath(val)} 
                         />
                       </div>
 
@@ -88,15 +90,13 @@ export const SettingsModal: React.FC = () => {
                           <div className="text-zinc-200 font-medium">Default Shell</div>
                           <div className="text-zinc-400 text-sm mt-1">Command used when spawning a new terminal.</div>
                         </div>
-                        <select 
-                          value={settings.environment.defaultShell}
-                          onChange={(e) => updateSettings('environment', { defaultShell: e.target.value })}
-                          className="bg-zinc-800 text-zinc-200 text-sm rounded-md border border-zinc-700 px-3 py-1.5 focus:outline-none focus:border-blue-500 outline-none"
-                        >
-                          <option value="zsh">zsh</option>
-                          <option value="bash">bash</option>
-                          <option value="sh">sh</option>
-                        </select>
+                        <input 
+                          type="text"
+                          value={settings.defaultShell}
+                          onChange={(e) => settings.setDefaultShell(e.target.value)}
+                          className="bg-zinc-800 text-zinc-200 text-sm rounded-md border border-zinc-700 px-3 py-1.5 focus:outline-none focus:border-blue-500 outline-none w-full max-w-xs"
+                          placeholder="/bin/zsh"
+                        />
                       </div>
                     </div>
                   </section>
@@ -126,8 +126,8 @@ export const SettingsModal: React.FC = () => {
                           <div className="text-zinc-400 text-sm mt-1">Minimum severity required to write logs to the internal console.</div>
                         </div>
                         <select 
-                          value={settings.qa.logLevel}
-                          onChange={(e) => updateSettings('qa', { logLevel: e.target.value })}
+                          value={settings.logLevel}
+                          onChange={(e) => settings.setLogLevel(e.target.value)}
                           className="bg-zinc-800 text-zinc-200 text-sm rounded-md border border-zinc-700 px-3 py-1.5 focus:outline-none focus:border-blue-500 outline-none"
                         >
                           <option value="info">Info</option>
@@ -142,8 +142,8 @@ export const SettingsModal: React.FC = () => {
                           <div className="text-zinc-400 text-sm mt-1">Strip transition timings to optimize Playwright E2E testing speed and stability.</div>
                         </div>
                         <Toggle 
-                          checked={settings.qa.disableAnimations} 
-                          onChange={(val) => updateSettings('qa', { disableAnimations: val })} 
+                          checked={settings.disableAnimations} 
+                          onChange={(val) => settings.setDisableAnimations(val)} 
                         />
                       </div>
                     </div>
@@ -167,8 +167,8 @@ export const SettingsModal: React.FC = () => {
                             type="number" 
                             min="1" 
                             max="60"
-                            value={settings.webManager.tabHibernationTimeout}
-                            onChange={(e) => updateSettings('webManager', { tabHibernationTimeout: Number(e.target.value) || 5 })}
+                            value={settings.tabHibernationTimeout}
+                            onChange={(e) => settings.setTabHibernationTimeout(Number(e.target.value) || 5)}
                             className="bg-zinc-800 text-zinc-200 text-sm rounded-md border border-zinc-700 px-3 py-1.5 w-20 focus:outline-none focus:border-blue-500 outline-none"
                           />
                           <span className="text-zinc-500 text-sm">min</span>
@@ -191,8 +191,8 @@ export const SettingsModal: React.FC = () => {
                           <div className="text-zinc-400 text-sm mt-1">Display real-time telemetry overlay for LLM token consumption (prompt and completion tokens) across active agents.</div>
                         </div>
                         <Toggle 
-                          checked={settings.agents.showTokenTelemetry} 
-                          onChange={(val) => updateSettings('agents', { showTokenTelemetry: val })} 
+                          checked={settings.showTokenTelemetry} 
+                          onChange={(val) => settings.setShowTokenTelemetry(val)} 
                         />
                       </div>
                     </div>

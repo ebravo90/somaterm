@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "allure:report": "allure generate allure-results --clean && allure open",
-    "test:e2e:local": "wdio run wdio.conf.ts",
+    "test:e2e:local": "start-server-and-test dev:mock http://127.0.0.1:5173 'wdio run wdio.conf.ts'",
     "test:e2e:ci": "wdio run wdio.ci.conf.ts",
     "dev:mock": "VITE_MOCK_TAURI=true vite",
     "prepare": "husky"
@@ -49,6 +49,7 @@
     "lint-staged": "^17.2.0",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.19",
+    "start-server-and-test": "^3.0.11",
     "tailwindcss": "^4.3.3",
     "ts-node": "^10.9.2",
     "typescript": "~6.0.2",
