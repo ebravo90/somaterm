@@ -6,9 +6,10 @@ let tauriDriver: ChildProcess;
 
 export const config = {
     ...baseConfig,
+    port: 4444,
+    path: '/',
     capabilities: [{
         maxInstances: 1,
-        browserName: 'wry',
         'tauri:options': {
             application: path.resolve(process.cwd(), 'src-tauri/target/debug/app'),
         }
