@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppStore } from '../store/useAppStore';
+import { useSettingsStore } from '../store/useSettingsStore';
 import { listen } from '@tauri-apps/api/event';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { Wand2, ChevronDown, Check } from 'lucide-react';
@@ -88,6 +89,11 @@ export function TerminalCanvas({ id }: { id: string }) {
     });
     term.current.loadAddon(webLinksAddon);
 
+    if (import.meta.env.DEV) {
+      (window as any).__term_for_test = term.current;
+      (window as any).__term_id_for_test = id;
+    }
+
     term.current.onResize(({ cols, rows }) => {
       invoke('resize_pty', { id, rows, cols }).catch(console.error);
     });
@@ -151,7 +157,14 @@ export function TerminalCanvas({ id }: { id: string }) {
         // Spawn the shell process on mount with initial dimensions
         const rows = term.current?.rows || 24;
         const cols = term.current?.cols || 80;
-        await invoke('spawn_pty', { id, rows, cols });
+        const { defaultShell, useSystemPath } = useSettingsStore.getState();
+        await invoke('spawn_pty', { 
+            id, 
+            rows, 
+            cols,
+            defaultShell: defaultShell || undefined,
+            useSystemPath 
+        });
       } catch (e) {
         console.error("IPC Error:", e);
         setError(String(e));

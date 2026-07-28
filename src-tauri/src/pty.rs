@@ -20,7 +20,15 @@ impl PtyManager {
         }
     }
 
-    pub fn spawn(&self, app_handle: AppHandle, id: String, rows: u16, cols: u16) -> Result<(), String> {
+    pub fn spawn(
+        &self,
+        app_handle: AppHandle,
+        id: String,
+        rows: u16,
+        cols: u16,
+        default_shell: Option<String>,
+        use_system_path: bool,
+    ) -> Result<(), String> {
         let mut sessions = self.sessions.lock().unwrap();
         if sessions.contains_key(&id) {
             return Ok(());
@@ -37,33 +45,50 @@ impl PtyManager {
             })
             .map_err(|e| e.to_string())?;
 
-        let mut cmd = CommandBuilder::new(Self::default_shell());
+        let shell_cmd = default_shell.unwrap_or_else(|| Self::default_shell());
+        let mut cmd = CommandBuilder::new(&shell_cmd);
         cmd.env("TERM", "xterm-256color");
 
         #[cfg(target_os = "macos")]
         {
-            let current_path = std::env::var("PATH").unwrap_or_default();
-            let home = std::env::var("HOME").unwrap_or_default();
+            let mut paths_str = String::new();
             
-            let mut paths = vec![
-                "/opt/homebrew/bin".to_string(),
-                "/opt/homebrew/sbin".to_string(),
-                "/usr/local/bin".to_string(),
-                "/usr/local/sbin".to_string(),
-            ];
-            
-            if !home.is_empty() {
-                paths.push(format!("{}/.pyenv/shims", home));
-                paths.push(format!("{}/.rbenv/shims", home));
-                paths.push(format!("{}/.cargo/bin", home));
-                paths.push(format!("{}/.fnm", home));
+            if use_system_path {
+                let output = std::process::Command::new(&shell_cmd)
+                    .arg("-lc")
+                    .arg("echo -n $PATH")
+                    .output();
+                    
+                if let Ok(out) = output {
+                    paths_str = String::from_utf8_lossy(&out.stdout).to_string();
+                }
             }
             
-            if !current_path.is_empty() {
-                paths.push(current_path);
+            if paths_str.is_empty() {
+                let current_path = std::env::var("PATH").unwrap_or_default();
+                let home = std::env::var("HOME").unwrap_or_default();
+                
+                let mut paths = vec![
+                    "/opt/homebrew/bin".to_string(),
+                    "/opt/homebrew/sbin".to_string(),
+                    "/usr/local/bin".to_string(),
+                    "/usr/local/sbin".to_string(),
+                ];
+                
+                if !home.is_empty() {
+                    paths.push(format!("{}/.pyenv/shims", home));
+                    paths.push(format!("{}/.rbenv/shims", home));
+                    paths.push(format!("{}/.cargo/bin", home));
+                    paths.push(format!("{}/.fnm", home));
+                }
+                
+                if !current_path.is_empty() {
+                    paths.push(current_path);
+                }
+                paths_str = paths.join(":");
             }
             
-            cmd.env("PATH", paths.join(":"));
+            cmd.env("PATH", paths_str);
         }
 
         // Spawn the shell process

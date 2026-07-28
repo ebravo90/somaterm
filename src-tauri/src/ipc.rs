@@ -213,11 +213,20 @@ pub fn spawn_pty(
     id: String,
     rows: u16,
     cols: u16,
+    default_shell: Option<String>,
+    use_system_path: Option<bool>,
     app_handle: tauri::AppHandle,
     pty: State<'_, Mutex<PtyManager>>,
 ) -> Result<(), String> {
     let pty_manager = pty.lock().unwrap();
-    pty_manager.spawn(app_handle, id, rows, cols)
+    pty_manager.spawn(
+        app_handle,
+        id,
+        rows,
+        cols,
+        default_shell,
+        use_system_path.unwrap_or(false),
+    )
 }
 
 #[tauri::command]
