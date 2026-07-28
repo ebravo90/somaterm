@@ -1,4 +1,4 @@
-import { Store } from '@tauri-apps/plugin-store';
+import { Store, LazyStore } from '@tauri-apps/plugin-store';
 
 class MockStore {
   private data = new Map<string, unknown>();
@@ -22,4 +22,4 @@ class MockStore {
 // In local mocked tests, we avoid IPC calls to the plugin
 export const secureVault = import.meta.env.VITE_MOCK_TAURI === 'true'
   ? new MockStore() as unknown as Store
-  : new Store('settings.dat');
+  : new LazyStore('settings.dat') as unknown as Store;
