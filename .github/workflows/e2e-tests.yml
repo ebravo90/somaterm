@@ -90,7 +90,10 @@ jobs:
           npm run build
           cd src-tauri && cargo build
       - name: Run WebdriverIO E2E Native Tests
-        run: WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run npm run test:e2e:ci
+        run: |
+          npm run dev &
+          sleep 5
+          WEBKIT_DISABLE_COMPOSITING_MODE=1 xvfb-run npm run test:e2e:ci
       - name: Fail Fast (Cancel Run)
         if: failure()
         run: gh run cancel ${{ github.run_id }}
