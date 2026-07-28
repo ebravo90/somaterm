@@ -501,6 +501,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (state.isGenerating) return;
     if (!input.trim() || !state.selectedAgentId) return;
 
+    if (input.length > 10000) {
+      const sessionId = state.activeSessionId || state.createSession(state.selectedAgentId);
+      state.setActiveSession(sessionId);
+      state.addMessageToActiveSession({ role: 'user', content: input.substring(0, 500) + '... [TRUNCATED]' });
+      state.addMessageToActiveSession({ role: 'assistant', content: '⚠️ **Security Warning**: Context Limit Exceeded. Input is too large (over 10,000 characters) and has been blocked to prevent Context Overload.' });
+      return;
+    }
+
     const activeAgent = state.agents.find(a => a.id === state.selectedAgentId);
     if (!activeAgent) return;
 

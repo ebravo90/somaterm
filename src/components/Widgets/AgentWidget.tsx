@@ -7,9 +7,11 @@ import remarkGfm from 'remark-gfm';
 
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [isSent, setIsSent] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
   const isRunnable = ['bash', 'sh', 'zsh'].includes(lang?.toLowerCase());
 
   const handleRun = async () => {
+    setRunError(null);
     try {
       const store = useAppStore.getState();
       const terminalId = store.activeTerminalId || (store.terminals && store.terminals.length > 0 ? store.terminals[0].id : null);
@@ -25,8 +27,10 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
       
       setIsSent(true);
       setTimeout(() => setIsSent(false), 1500);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to run code in terminal:", e);
+      setRunError(e.toString());
+      setTimeout(() => setRunError(null), 5000);
     }
   };
 
@@ -65,6 +69,11 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
       <pre className="p-3 text-sm overflow-x-auto whitespace-pre-wrap">
         <code>{code}</code>
       </pre>
+      {runError && (
+        <div className="bg-red-900/50 text-red-200 text-xs p-2 border-t border-red-800">
+          ⚠️ {runError}
+        </div>
+      )}
     </div>
   );
 }

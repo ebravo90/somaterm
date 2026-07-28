@@ -19,9 +19,13 @@ struct UrlChangedPayload {
 pub struct PermissionGate;
 
 impl PermissionGate {
-    pub fn validate_and_route(_data: &str) -> Result<(), String> {
+    pub fn validate_and_route(data: &str) -> Result<(), String> {
+        let trimmed = data.trim();
+        if trimmed.contains("rm -rf /") || trimmed.contains("mkfs") {
+            return Err("Security Violation: Destructive command blocked by PermissionGate.".to_string());
+        }
         // Future: Check security level and prompt user if necessary.
-        // For Phase 1: Always allow.
+        // For Phase 1: Always allow non-destructive commands.
         Ok(())
     }
 }
