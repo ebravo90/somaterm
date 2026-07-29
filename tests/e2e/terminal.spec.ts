@@ -20,8 +20,16 @@ describe('Terminal Environment Injection Test', () => {
         // Wait for the native PTY process to fully initialize (can take longer on Linux CI)
         await browser.pause(3000);
 
-        // Type the command `echo $PATH`
-        await browser.keys(['e', 'c', 'h', 'o', ' ', '$', 'P', 'A', 'T', 'H', 'Enter']);
+        // Type the command `echo $PATH` directly via IPC to bypass Xvfb focus flakiness
+        if (browser.capabilities.browserName === 'wry') {
+            await browser.execute(() => {
+                if (typeof (window as any).__invoke_write === 'function') {
+                    (window as any).__invoke_write('echo $PATH\n');
+                }
+            });
+        } else {
+            await browser.keys(['e', 'c', 'h', 'o', ' ', '$', 'P', 'A', 'T', 'H', 'Enter']);
+        }
 
         // Wait a moment for the PTY to process the command and the output to render
         await browser.pause(3000);

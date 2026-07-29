@@ -92,6 +92,7 @@ export function TerminalCanvas({ id }: { id: string }) {
     if (import.meta.env.DEV) {
       (window as any).__term_for_test = term.current;
       (window as any).__term_id_for_test = id;
+      (window as any).__invoke_write = (data: string) => invoke('write_to_pty', { id, data }).catch(console.error);
     }
 
     term.current.onResize(({ cols, rows }) => {
