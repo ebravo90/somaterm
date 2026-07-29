@@ -17,11 +17,14 @@ describe('Terminal Environment Injection Test', () => {
         // Ensure the terminal is focused by clicking it
         await terminalContainer.click();
 
+        // Wait for the native PTY process to fully initialize (can take longer on Linux CI)
+        await browser.pause(3000);
+
         // Type the command `echo $PATH`
         await browser.keys(['e', 'c', 'h', 'o', ' ', '$', 'P', 'A', 'T', 'H', 'Enter']);
 
         // Wait a moment for the PTY to process the command and the output to render
-        await browser.pause(1000);
+        await browser.pause(3000);
 
         // If we are in local mock mode (running in Chrome), the mock backend won't properly
         // simulate a full PTY echo. We inject it directly into the terminal so the test
