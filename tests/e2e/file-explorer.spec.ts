@@ -55,7 +55,7 @@ describe('File Explorer Widget Tests', () => {
         await fileExplorerToggle.click();
 
         // 8. Verify widget mounts
-        const widgetTitle = await $('h2*=Agent\'s Eye');
+        const widgetTitle = await $('h2*=File Explorer');
         await widgetTitle.waitForExist({ timeout: 5000 });
 
         // 9. Wait for the file tree to load

@@ -550,11 +550,8 @@ fn build_tree(dir: &std::path::Path) -> Result<Vec<FileNode>, std::io::Error> {
 }
 
 #[tauri::command]
-pub fn get_file_tree(path: Option<String>) -> Result<FileNode, String> {
-    let root_path = match path {
-        Some(p) => std::path::PathBuf::from(p),
-        None => std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
-    };
+pub fn get_file_tree(target_path: String) -> Result<FileNode, String> {
+    let root_path = std::path::PathBuf::from(target_path);
     
     let name = root_path
         .file_name()

@@ -42,6 +42,10 @@ export function setupTauriMocks() {
     if (cmd === "plugin:event|listen") {
       return Math.floor(Math.random() * 1000000);
     }
+
+    if (cmd === "plugin:path|home_dir") {
+      return Promise.resolve("/mock/home");
+    }
     
     if (cmd === "write_to_pty") {
       const data = args.data as string;

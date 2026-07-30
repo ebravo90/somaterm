@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
+import { homeDir } from '@tauri-apps/api/path';
 
 interface FileNode {
   name: string;
@@ -58,7 +59,13 @@ export function FileExplorerWidget() {
   useEffect(() => {
     async function loadTree() {
       try {
-        const root: FileNode = await invoke('get_file_tree');
+        let home = '.';
+        try {
+          home = await homeDir();
+        } catch (e) {
+          console.warn('homeDir API failed, falling back to .');
+        }
+        const root: FileNode = await invoke('get_file_tree', { targetPath: home });
         setTree(root);
       } catch (err: any) {
         setError(err.toString());
@@ -77,7 +84,7 @@ export function FileExplorerWidget() {
             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
           </svg>
-          Agent's Eye
+          File Explorer
         </h2>
         <button 
           onClick={closeWidget}
