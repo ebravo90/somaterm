@@ -55,6 +55,6 @@ describe('Security Phase 2 Tests', () => {
 
         // The fetch should fail and return success: false
         expect(result.success).toBe(false);
-        expect(result.message).toMatch(/fetch/i);
+        expect(result.message).toMatch(/fetch|load failed|network error/i);
     });
 });

@@ -16,6 +16,8 @@ export interface SettingsState {
   setDisableAnimations: (val: boolean) => void;
   setTabHibernationTimeout: (val: number) => void;
   setShowTokenTelemetry: (val: boolean) => void;
+  widgetsEnabled: { fileExplorer: boolean };
+  setWidgetsEnabled: (val: { fileExplorer: boolean }) => void;
 }
 
 const secureStorage: StateStorage = {
@@ -37,17 +39,19 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       useSystemPath: false,
-      defaultShell: 'zsh',
+      defaultShell: typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac') ? 'zsh' : 'bash',
       logLevel: 'info',
       disableAnimations: false,
       tabHibernationTimeout: 5,
       showTokenTelemetry: false,
+      widgetsEnabled: { fileExplorer: false },
       setUseSystemPath: (val) => set({ useSystemPath: val }),
       setDefaultShell: (val) => set({ defaultShell: val }),
       setLogLevel: (val) => set({ logLevel: val }),
       setDisableAnimations: (val) => set({ disableAnimations: val }),
       setTabHibernationTimeout: (val) => set({ tabHibernationTimeout: val }),
       setShowTokenTelemetry: (val) => set({ showTokenTelemetry: val }),
+      setWidgetsEnabled: (val) => set({ widgetsEnabled: val }),
     }),
     {
       name: 'somaterm-settings',

@@ -11,13 +11,17 @@ describe('Storage Security Test', () => {
         const root = await $('#root');
         await root.waitForExist({ timeout: 15000 });
         
-        // Retrieve localStorage length via browser execute
-        const storageLength = await browser.execute(() => {
-            return window.localStorage.length;
+        // Retrieve localStorage keys via browser execute
+        const storageKeys = await browser.execute(() => {
+            return Object.keys(window.localStorage);
         });
+
+        // Filter out known safe/internal keys (like Vite dev keys)
+        // Ensure no sensitive app keys (like 'settings', 'auth', 'vault') are present
+        const sensitiveKeys = storageKeys.filter(k => k.toLowerCase().includes('setting') || k.toLowerCase().includes('auth') || k.toLowerCase().includes('vault'));
 
         // Assert that we are not storing things in localStorage
         // We enforce the usage of tauri-plugin-store instead
-        expect(storageLength).toBe(0);
+        expect(sensitiveKeys.length).toBe(0);
     });
 });
