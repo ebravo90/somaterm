@@ -17,14 +17,36 @@ describe('Terminal Environment Injection Test', () => {
         // Ensure the terminal is focused by clicking it
         await terminalContainer.click();
 
-        // Wait for the native PTY process to fully initialize (can take longer on Linux CI)
-        await browser.pause(3000);
+        // Wait for the native PTY process to fully initialize and output a prompt
+        if (browser.capabilities.browserName === 'wry') {
+            const errorBanner = await $('div*=Error initializing terminal');
+            if (await errorBanner.isExisting()) {
+                const text = await errorBanner.getText();
+                throw new Error(`PTY Spawn Error: ${text}`);
+            }
+
+            await browser.waitUntil(async () => {
+                const text = await browser.execute(() => {
+                    const term = (window as any).__term_for_test;
+                    if (!term) return "";
+                    let txt = "";
+                    for (let i = 0; i < term.buffer.active.length; i++) {
+                        const line = term.buffer.active.getLine(i);
+                        if (line) txt += line.translateToString(true).trim();
+                    }
+                    return txt;
+                });
+                return text.length > 0;
+            }, { timeout: 15000, timeoutMsg: 'Terminal did not output a shell prompt' });
+        } else {
+            await browser.pause(3000);
+        }
 
         // Type the command `echo $PATH` directly via IPC to bypass Xvfb focus flakiness
         if (browser.capabilities.browserName === 'wry') {
             await browser.execute(() => {
                 if (typeof (window as any).__invoke_write === 'function') {
-                    (window as any).__invoke_write('echo $PATH\n');
+                    (window as any).__invoke_write('echo $PATH\r');
                 }
             });
         } else {
