@@ -505,3 +505,110 @@ pub fn write_debug_log(session_id: String, log_line: String) -> Result<(), Strin
     }
     Ok(())
 }
+
+#[derive(Serialize)]
+pub struct FileNode {
+    name: String,
+    path: String,
+    is_dir: bool,
+    children: Option<Vec<FileNode>>,
+}
+
+fn build_tree(dir: &std::path::Path) -> Result<Vec<FileNode>, std::io::Error> {
+    let mut nodes = Vec::new();
+    if dir.is_dir() {
+        for entry in std::fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            
+            if name == "node_modules" || name == ".git" || name == "target" || name == "dist" || name == ".DS_Store" {
+                continue;
+            }
+            
+            let is_dir = path.is_dir();
+            let children = if is_dir {
+                Some(build_tree(&path).unwrap_or_default())
+            } else {
+                None
+            };
+            
+            nodes.push(FileNode {
+                name,
+                path: path.to_string_lossy().to_string(),
+                is_dir,
+                children,
+            });
+        }
+    }
+    
+    nodes.sort_by(|a, b| {
+        b.is_dir.cmp(&a.is_dir).then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    
+    Ok(nodes)
+}
+
+#[tauri::command]
+pub fn get_file_tree(path: Option<String>) -> Result<FileNode, String> {
+    let root_path = match path {
+        Some(p) => std::path::PathBuf::from(p),
+        None => std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from(".")),
+    };
+    
+    let name = root_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "Workspace".to_string());
+        
+    let children = build_tree(&root_path).map_err(|e| e.to_string())?;
+    
+    Ok(FileNode {
+        name,
+        path: root_path.to_string_lossy().to_string(),
+        is_dir: true,
+        children: Some(children),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_build_tree_ignores_directories() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        
+        fs::create_dir(path.join("node_modules")).unwrap();
+        fs::create_dir(path.join(".git")).unwrap();
+        fs::create_dir(path.join("target")).unwrap();
+        fs::create_dir(path.join("dist")).unwrap();
+        fs::create_dir(path.join("valid_dir")).unwrap();
+        fs::File::create(path.join("valid_file.rs")).unwrap();
+        
+        let nodes = build_tree(path).unwrap();
+        
+        assert_eq!(nodes.len(), 2);
+        
+        assert_eq!(nodes[0].name, "valid_dir");
+        assert!(nodes[0].is_dir);
+        
+        assert_eq!(nodes[1].name, "valid_file.rs");
+        assert!(!nodes[1].is_dir);
+    }
+}
+
+#[tauri::command]
+pub fn get_system_shell() -> String {
+    #[cfg(unix)]
+    {
+        std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string())
+    }
+    #[cfg(windows)]
+    {
+        std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
+    }
+}

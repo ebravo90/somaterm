@@ -39,7 +39,7 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       useSystemPath: false,
-      defaultShell: typeof navigator !== 'undefined' && navigator.userAgent.includes('Mac') ? 'zsh' : 'bash',
+      defaultShell: '', // Fetched dynamically if not set
       logLevel: 'info',
       disableAnimations: false,
       tabHibernationTimeout: 5,

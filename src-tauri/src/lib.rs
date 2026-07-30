@@ -215,7 +215,9 @@ pub fn run() {
             ipc::load_agents,
             ipc::save_agents,
             ipc::load_history,
-            ipc::save_history
+            ipc::save_history,
+            ipc::get_file_tree,
+            ipc::get_system_shell
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
