@@ -89,11 +89,10 @@ export function TerminalCanvas({ id }: { id: string }) {
     });
     term.current.loadAddon(webLinksAddon);
 
-    if (import.meta.env.DEV) {
-      (window as any).__term_for_test = term.current;
-      (window as any).__term_id_for_test = id;
-      (window as any).__invoke_write = (data: string) => invoke('write_to_pty', { id, data }).catch(console.error);
-    }
+    // Expose for E2E tests (which run against release builds in Tauri CI)
+    (window as any).__term_for_test = term.current;
+    (window as any).__term_id_for_test = id;
+    (window as any).__invoke_write = (data: string) => invoke('write_to_pty', { id, data }).catch(console.error);
 
     term.current.onResize(({ cols, rows }) => {
       invoke('resize_pty', { id, rows, cols }).catch(console.error);

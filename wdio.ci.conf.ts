@@ -14,14 +14,12 @@ export const config = {
             application: path.resolve(process.cwd(), 'src-tauri/target/debug/app'),
         }
     }],
-    onPrepare: function () {
+    beforeSession: function () {
         console.log('Starting tauri-driver...');
         tauriDriver = spawn('tauri-driver', [], { stdio: [null, process.stdout, process.stderr] });
-    },
-    beforeSession: function () {
         return new Promise(resolve => setTimeout(resolve, 2000));
     },
-    onComplete: function () {
+    afterSession: function () {
         console.log('Killing tauri-driver...');
         if (tauriDriver) {
             tauriDriver.kill();
