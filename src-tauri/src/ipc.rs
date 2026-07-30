@@ -539,7 +539,11 @@ fn build_tree(dir: &std::path::Path, current_depth: usize, max_depth: usize) -> 
             
             let is_dir = path.is_dir();
             let children = if is_dir {
-                Some(build_tree(&path, current_depth + 1, max_depth).unwrap_or_default())
+                if current_depth + 1 >= max_depth {
+                    None
+                } else {
+                    Some(build_tree(&path, current_depth + 1, max_depth).unwrap_or_default())
+                }
             } else {
                 None
             };
@@ -622,12 +626,12 @@ mod tests {
         let tree_depth_1 = build_tree(&path, 0, 1).unwrap();
         assert_eq!(tree_depth_1.len(), 1);
         assert_eq!(tree_depth_1[0].name, "l1");
-        assert!(tree_depth_1[0].children.as_ref().unwrap().is_empty());
+        assert!(tree_depth_1[0].children.is_none());
         
         let tree_depth_2 = build_tree(&path, 0, 2).unwrap();
         assert_eq!(tree_depth_2[0].children.as_ref().unwrap().len(), 1);
         assert_eq!(tree_depth_2[0].children.as_ref().unwrap()[0].name, "l2");
-        assert!(tree_depth_2[0].children.as_ref().unwrap()[0].children.as_ref().unwrap().is_empty());
+        assert!(tree_depth_2[0].children.as_ref().unwrap()[0].children.is_none());
     }
 }
 
@@ -641,4 +645,11 @@ pub fn get_system_shell() -> String {
     {
         std::env::var("COMSPEC").unwrap_or_else(|_| "powershell.exe".to_string())
     }
+}
+
+#[tauri::command]
+pub fn get_initial_cwd() -> Result<String, String> {
+    std::env::current_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .map_err(|e| e.to_string())
 }

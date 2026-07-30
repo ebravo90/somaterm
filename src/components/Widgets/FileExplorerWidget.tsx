@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
-import { homeDir, dirname } from '@tauri-apps/api/path';
+import { dirname } from '@tauri-apps/api/path';
 
 interface FileNode {
   name: string;
@@ -73,16 +73,16 @@ export function FileExplorerWidget() {
   useEffect(() => {
     async function loadInitial() {
       try {
-        let homePath = '.';
+        let cwd = '.';
         try {
-          const res = await homeDir();
+          const res = await invoke<string>('get_initial_cwd');
           if (typeof res === 'string') {
-            homePath = res;
+            cwd = res;
           }
         } catch (e) {
-          console.warn('homeDir API failed, falling back to .');
+          console.warn('get_initial_cwd API failed, falling back to .');
         }
-        setRootPath(homePath);
+        setRootPath(cwd);
       } catch (err: any) {
         setError(err.toString());
       }
@@ -97,18 +97,7 @@ export function FileExplorerWidget() {
       setLoading(true);
       setError(null);
       try {
-        let homePath = '.';
-        try {
-          const res = await homeDir();
-          if (typeof res === 'string') {
-            homePath = res;
-          }
-        } catch (e) {
-          // ignore
-        }
-        
-        const maxDepth = (rootPath === homePath || rootPath === '.') ? 1 : 4;
-        const root: FileNode = await invoke('get_file_tree', { targetPath: rootPath, maxDepth });
+        const root: FileNode = await invoke('get_file_tree', { targetPath: rootPath, maxDepth: 1 });
         setTree(root);
       } catch (err: any) {
         setError(err.toString());
@@ -207,7 +196,7 @@ export function FileExplorerWidget() {
                 className="w-full text-left px-3 py-1.5 text-sm text-soma-text hover:bg-soma-border transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <span className="opacity-80">📁</span>
-                <span>... (Go up)</span>
+                <span>...</span>
               </button>
             </div>
           </>

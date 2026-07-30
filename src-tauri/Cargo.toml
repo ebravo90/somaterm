@@ -30,3 +30,6 @@ keyring = "3.6.3"
 hex = "0.4.3"
 tauri-plugin-process = "2"
 tauri-plugin-store = "2.4.4"
+
+[dev-dependencies]
+tempfile = "3.27.0"

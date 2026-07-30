@@ -75,6 +75,10 @@ export function setupTauriMocks() {
     if (cmd === "get_system_shell") {
        return Promise.resolve("/bin/bash");
     }
+
+    if (cmd === "get_initial_cwd") {
+       return Promise.resolve("/mock/cwd");
+    }
     
     if (cmd === "get_file_tree") {
       return {
