@@ -9,7 +9,7 @@ describe('File Explorer Widget Tests', () => {
         const root = await $('#root');
         await root.waitForExist({ timeout: 15000 });
 
-        const fileExplorerToggle = await $('button[title="Toggle Agent\'s Eye (File Explorer)"]');
+        const fileExplorerToggle = await $('button[title="Toggle File Explorer"]');
         expect(await fileExplorerToggle.isExisting()).toBe(false);
     });
 
@@ -31,8 +31,8 @@ describe('File Explorer Widget Tests', () => {
         const ideTab = await $('button=IDE');
         await ideTab.click();
 
-        // 3. Toggle the Agent's Eye (File Explorer) toggle
-        const toggleButton = await $('//div[contains(text(), "Agent\'s Eye (File Explorer)")]/../../button[@role="switch"]');
+        // 3. Toggle the File Explorer toggle
+        const toggleButton = await $('//div[contains(text(), "File Explorer")]/../../button[@role="switch"]');
         await toggleButton.waitForExist({ timeout: 5000 });
         await toggleButton.click();
 
@@ -48,7 +48,7 @@ describe('File Explorer Widget Tests', () => {
         });
 
         // 6. Verify dock icon is now visible
-        const fileExplorerToggle = await $('button[title="Toggle Agent\'s Eye (File Explorer)"]');
+        const fileExplorerToggle = await $('button[title="Toggle File Explorer"]');
         await fileExplorerToggle.waitForExist({ timeout: 5000 });
 
         // 7. Click dock icon to open widget
