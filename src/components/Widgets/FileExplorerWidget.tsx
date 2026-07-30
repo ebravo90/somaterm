@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
-import { homeDir } from '@tauri-apps/api/path';
+import { homeDir, dirname } from '@tauri-apps/api/path';
 
 interface FileNode {
   name: string;
@@ -10,18 +10,30 @@ interface FileNode {
   children?: FileNode[];
 }
 
-function FileTreeItem({ node, level }: { node: FileNode; level: number }) {
-  // Open root node by default
+function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: number; onUpdateNode: (path: string, children: FileNode[]) => void }) {
   const [isOpen, setIsOpen] = useState(level === 0);
+  const [loading, setLoading] = useState(false);
 
-  const toggle = (e: React.MouseEvent) => {
+  const toggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (node.is_dir) {
+      if (!isOpen && node.children === undefined) {
+        setLoading(true);
+        try {
+          const root: FileNode = await invoke('get_file_tree', { targetPath: node.path, maxDepth: 1 });
+          onUpdateNode(node.path, root.children || []);
+        } catch (err) {
+          console.error('Failed to fetch children', err);
+        } finally {
+          setLoading(false);
+        }
+      }
       setIsOpen(!isOpen);
     }
   };
 
   const getIcon = () => {
+    if (loading) return '⏳';
     if (node.is_dir) return isOpen ? '📂' : '📁';
     if (node.name.endsWith('.rs')) return '🦀';
     if (node.name.endsWith('.ts') || node.name.endsWith('.tsx')) return '📘';
@@ -42,7 +54,7 @@ function FileTreeItem({ node, level }: { node: FileNode; level: number }) {
       {node.is_dir && isOpen && node.children && (
         <div>
           {node.children.map((child, idx) => (
-            <FileTreeItem key={`${child.path}-${idx}`} node={child} level={level + 1} />
+            <FileTreeItem key={`${child.path}-${idx}`} node={child} level={level + 1} onUpdateNode={onUpdateNode} />
           ))}
         </div>
       )}
@@ -55,21 +67,48 @@ export function FileExplorerWidget() {
   const [tree, setTree] = useState<FileNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rootPath, setRootPath] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
-    async function loadTree() {
+    async function loadInitial() {
       try {
         let homePath = '.';
         try {
-          homePath = await homeDir();
+          const res = await homeDir();
+          if (typeof res === 'string') {
+            homePath = res;
+          }
         } catch (e) {
           console.warn('homeDir API failed, falling back to .');
         }
+        setRootPath(homePath);
+      } catch (err: any) {
+        setError(err.toString());
+      }
+    }
+    loadInitial();
+  }, []);
+
+  useEffect(() => {
+    if (!rootPath) return;
+    
+    async function loadTree() {
+      setLoading(true);
+      setError(null);
+      try {
+        let homePath = '.';
+        try {
+          const res = await homeDir();
+          if (typeof res === 'string') {
+            homePath = res;
+          }
+        } catch (e) {
+          // ignore
+        }
         
-        const targetPath = homePath; // In the future, this could be the PTY's actual CWD
-        const maxDepth = (targetPath === homePath || targetPath === '.') ? 1 : 4;
-        
-        const root: FileNode = await invoke('get_file_tree', { targetPath, maxDepth });
+        const maxDepth = (rootPath === homePath || rootPath === '.') ? 1 : 4;
+        const root: FileNode = await invoke('get_file_tree', { targetPath: rootPath, maxDepth });
         setTree(root);
       } catch (err: any) {
         setError(err.toString());
@@ -78,7 +117,48 @@ export function FileExplorerWidget() {
       }
     }
     loadTree();
-  }, []);
+  }, [rootPath]);
+
+  const handleGoUp = async () => {
+    if (!rootPath) return;
+    try {
+      if (rootPath === '/' || rootPath === 'C:\\') return;
+      
+      let parent = '';
+      try {
+        const res = await dirname(rootPath);
+        if (typeof res === 'string') {
+          parent = res;
+        } else {
+          throw new Error('mock fallback');
+        }
+      } catch (e) {
+        // mock fallback
+        parent = rootPath.substring(0, rootPath.lastIndexOf('/')) || '/';
+      }
+      setRootPath(parent);
+    } catch (e) {
+      console.error("Failed to get dirname", e);
+    }
+  };
+
+  const handleUpdateNode = (path: string, newChildren: FileNode[]) => {
+    setTree(prev => {
+      if (!prev) return prev;
+      
+      const updateNode = (node: FileNode): FileNode => {
+        if (node.path === path) {
+          return { ...node, children: newChildren };
+        }
+        if (node.children) {
+          return { ...node, children: node.children.map(updateNode) };
+        }
+        return node;
+      };
+      
+      return updateNode(prev);
+    });
+  };
 
   return (
     <div className="@container w-full h-full flex flex-col bg-soma-panel relative">
@@ -101,13 +181,45 @@ export function FileExplorerWidget() {
           </svg>
         </button>
       </div>
+      
+      <div className="h-10 flex items-center px-4 border-b border-soma-border shrink-0 bg-soma-background/50 relative">
+        <button
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="flex items-center gap-1.5 text-sm font-medium text-soma-text hover:text-white truncate cursor-pointer transition-colors max-w-full"
+          title={rootPath || ''}
+          aria-label="Workspace Dropdown"
+        >
+          <span className="truncate">{rootPath ? rootPath.split(/[/\\]/).pop() || rootPath : 'Loading...'}</span>
+          <span className="text-[10px] opacity-70">▼</span>
+        </button>
+
+        {isDropdownOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
+            <div className="absolute top-10 left-4 z-50 mt-1 min-w-[200px] bg-soma-panel border border-soma-border rounded shadow-xl py-1">
+              <button
+                onClick={() => {
+                  handleGoUp();
+                  setIsDropdownOpen(false);
+                }}
+                disabled={rootPath === '/' || rootPath === 'C:\\'}
+                aria-label="Go Up"
+                className="w-full text-left px-3 py-1.5 text-sm text-soma-text hover:bg-soma-border transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <span className="opacity-80">📁</span>
+                <span>... (Go up)</span>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="grow overflow-y-auto p-2">
         {loading && <div className="text-sm text-soma-text-muted p-4 text-center animate-pulse">Loading workspace...</div>}
         {error && <div className="text-sm text-red-500 p-4 bg-red-900/20 rounded border border-red-900/50">{error}</div>}
         {!loading && !error && tree && (
           <div className="pb-8">
-            <FileTreeItem node={tree} level={0} />
+            <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} />
           </div>
         )}
       </div>

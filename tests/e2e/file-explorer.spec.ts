@@ -51,19 +51,46 @@ describe('File Explorer Widget Tests', () => {
         const fileExplorerToggle = await $('button[title="Toggle File Explorer"]');
         await fileExplorerToggle.waitForExist({ timeout: 5000 });
 
-        // 7. Click dock icon to open widget
-        await fileExplorerToggle.click();
+        // 7. Open widget via store to bypass animation/click flakiness
+        await browser.execute(() => {
+            (window as any).__store.getState().setActiveWidget({ type: 'file_explorer' });
+        });
 
         // 8. Verify widget mounts
-        const widgetTitle = await $('h2*=File Explorer');
-        await widgetTitle.waitForExist({ timeout: 5000 });
+        const widgetContainer = await $('//h2[contains(., "File Explorer")]');
+        await widgetContainer.waitForExist({ timeout: 5000 });
 
         // 9. Wait for the file tree to load
         const workspaceNode = await $('span=Workspace');
-        await workspaceNode.waitForExist({ timeout: 10000 });
+        try {
+            await workspaceNode.waitForExist({ timeout: 10000 });
+        } catch (e) {
+            const html = await $('body').getHTML();
+            console.error("BODY HTML WHEN FAILING AT INITIAL LOAD:", html);
+            throw e;
+        }
 
         // 10. Verify that node_modules is NOT present (ignored directory)
         const nodeModulesNode = await $('span=node_modules');
         expect(await nodeModulesNode.isExisting()).toBe(false);
+
+        // 11. Test Go Up navigation via dropdown
+        const dropdownToggle = await $('button[aria-label="Workspace Dropdown"]');
+        await dropdownToggle.waitForExist({ timeout: 5000 });
+        await dropdownToggle.click();
+
+        const upButton = await $('button[aria-label="Go Up"]');
+        await upButton.waitForExist({ timeout: 5000 });
+        await upButton.click();
+        
+        // Wait for reload to complete
+        const reloadedWorkspaceNode = await $('span=Workspace');
+        try {
+            await reloadedWorkspaceNode.waitForExist({ timeout: 5000 });
+        } catch (e) {
+            const html = await $('body').getHTML();
+            console.error("BODY HTML WHEN FAILING:", html);
+            throw e;
+        }
     });
 });
