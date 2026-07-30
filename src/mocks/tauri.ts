@@ -68,6 +68,19 @@ export function setupTauriMocks() {
        return {};
     }
     
+    if (cmd === "get_file_tree") {
+      return Promise.resolve({
+        name: "Workspace",
+        path: "/",
+        is_dir: true,
+        children: [
+          { name: "src", path: "/src", is_dir: true, children: [] },
+          { name: "package.json", path: "/package.json", is_dir: false },
+          { name: "README.md", path: "/README.md", is_dir: false }
+        ]
+      });
+    }
+
     // Default fallback
     return {};
   });

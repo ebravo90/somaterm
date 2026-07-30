@@ -8,6 +8,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebview';
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
+import { FileExplorerWidget } from './components/Widgets/FileExplorerWidget';
 import { SettingsModal } from './components/SettingsModal';
 import { DebugConsole } from './components/DebugConsole';
 
@@ -18,6 +19,7 @@ import { useSettingsStore } from './store/useSettingsStore';
 (window as any).__settingsStore = useSettingsStore;
 
 function App() {
+  const settingsStore = useSettingsStore();
   const { 
     activeWidget, 
     setActiveWidget, 
@@ -233,6 +235,31 @@ function App() {
       >
         {/* Floating Dock */}
         <div className="absolute top-4 right-4 z-[100] flex flex-col gap-3">
+          {/* File Explorer Toggle */}
+          {settingsStore.widgetsEnabled?.fileExplorer && (
+            <button
+              onClick={() => {
+                if (activeWidget?.type === 'file_explorer') {
+                  useAppStore.getState().addLog({ level: 'INFO', source: 'UX', message: 'Layout updated: Full Terminal mode' });
+                  closeWidget();
+                } else {
+                  useAppStore.getState().addLog({ level: 'INFO', source: 'UX', message: 'Widget activated: File Explorer' });
+                  setActiveWidget({ type: 'file_explorer' });
+                }
+              }}
+              className={`p-2 rounded-md transition-all cursor-pointer relative ${
+                activeWidget?.type === 'file_explorer'
+                  ? 'bg-white/5 backdrop-blur-[2px] text-blue-300 border border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.1)]'
+                  : 'bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
+              }`}
+              title="Toggle Agent's Eye (File Explorer)"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+          )}
+
           {/* Agent Toggle */}
           <button 
             onClick={() => {
@@ -322,6 +349,8 @@ function App() {
             <NativeWebview id={activeWebId} url={webViews.find(w => w.id === activeWebId)?.url || ''} />
           ) : activeWidget.type === 'web_manager' ? (
             <WebManagerWidget />
+          ) : activeWidget.type === 'file_explorer' ? (
+            <FileExplorerWidget />
           ) : (
             <AgentWidget />
           )}
