@@ -59,13 +59,17 @@ export function FileExplorerWidget() {
   useEffect(() => {
     async function loadTree() {
       try {
-        let home = '.';
+        let homePath = '.';
         try {
-          home = await homeDir();
+          homePath = await homeDir();
         } catch (e) {
           console.warn('homeDir API failed, falling back to .');
         }
-        const root: FileNode = await invoke('get_file_tree', { targetPath: home });
+        
+        const targetPath = homePath; // In the future, this could be the PTY's actual CWD
+        const maxDepth = (targetPath === homePath || targetPath === '.') ? 1 : 4;
+        
+        const root: FileNode = await invoke('get_file_tree', { targetPath, maxDepth });
         setTree(root);
       } catch (err: any) {
         setError(err.toString());

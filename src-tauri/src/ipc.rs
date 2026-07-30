@@ -514,11 +514,22 @@ pub struct FileNode {
     children: Option<Vec<FileNode>>,
 }
 
-fn build_tree(dir: &std::path::Path) -> Result<Vec<FileNode>, std::io::Error> {
+fn build_tree(dir: &std::path::Path, current_depth: usize, max_depth: usize) -> Result<Vec<FileNode>, std::io::Error> {
     let mut nodes = Vec::new();
+    if current_depth >= max_depth {
+        return Ok(nodes);
+    }
+    
     if dir.is_dir() {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
+        let entries = match std::fs::read_dir(dir) {
+            Ok(e) => e,
+            Err(_) => return Ok(nodes), // Gracefully skip unreadable directories
+        };
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
             
@@ -528,7 +539,7 @@ fn build_tree(dir: &std::path::Path) -> Result<Vec<FileNode>, std::io::Error> {
             
             let is_dir = path.is_dir();
             let children = if is_dir {
-                Some(build_tree(&path).unwrap_or_default())
+                Some(build_tree(&path, current_depth + 1, max_depth).unwrap_or_default())
             } else {
                 None
             };
@@ -550,7 +561,7 @@ fn build_tree(dir: &std::path::Path) -> Result<Vec<FileNode>, std::io::Error> {
 }
 
 #[tauri::command]
-pub fn get_file_tree(target_path: String) -> Result<FileNode, String> {
+pub fn get_file_tree(target_path: String, max_depth: usize) -> Result<FileNode, String> {
     let root_path = std::path::PathBuf::from(target_path);
     
     let name = root_path
@@ -558,7 +569,7 @@ pub fn get_file_tree(target_path: String) -> Result<FileNode, String> {
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "Workspace".to_string());
         
-    let children = build_tree(&root_path).map_err(|e| e.to_string())?;
+    let children = build_tree(&root_path, 0, max_depth).map_err(|e| e.to_string())?;
     
     Ok(FileNode {
         name,
@@ -586,7 +597,7 @@ mod tests {
         fs::create_dir(path.join("valid_dir")).unwrap();
         fs::File::create(path.join("valid_file.rs")).unwrap();
         
-        let nodes = build_tree(path).unwrap();
+        let nodes = build_tree(path, 0, 10).unwrap();
         
         assert_eq!(nodes.len(), 2);
         
@@ -595,6 +606,28 @@ mod tests {
         
         assert_eq!(nodes[1].name, "valid_file.rs");
         assert!(!nodes[1].is_dir);
+    }
+
+    #[test]
+    fn test_build_tree_max_depth() {
+        let dir = tempdir().unwrap();
+        let path = dir.path();
+        
+        let l1 = path.join("l1");
+        fs::create_dir(&l1).unwrap();
+        let l2 = l1.join("l2");
+        fs::create_dir(&l2).unwrap();
+        fs::write(l2.join("file.txt"), "hello").unwrap();
+        
+        let tree_depth_1 = build_tree(&path, 0, 1).unwrap();
+        assert_eq!(tree_depth_1.len(), 1);
+        assert_eq!(tree_depth_1[0].name, "l1");
+        assert!(tree_depth_1[0].children.as_ref().unwrap().is_empty());
+        
+        let tree_depth_2 = build_tree(&path, 0, 2).unwrap();
+        assert_eq!(tree_depth_2[0].children.as_ref().unwrap().len(), 1);
+        assert_eq!(tree_depth_2[0].children.as_ref().unwrap()[0].name, "l2");
+        assert!(tree_depth_2[0].children.as_ref().unwrap()[0].children.as_ref().unwrap().is_empty());
     }
 }
 
