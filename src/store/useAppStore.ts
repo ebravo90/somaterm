@@ -9,7 +9,7 @@ export interface TerminalSession {
   activeProcess: boolean;
 }
 
-export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string };
+export type ChatMessage = { role: 'user' | 'assistant', content: string, meta?: string, attachments?: string[] };
 export type WebViewItem = { id: string, url: string, hasUnread: boolean, isHibernated: boolean, isAudioPlaying?: boolean, lastActiveAt: number };
 export type LogEntry = { id: string, timestamp: number, level: 'INFO' | 'WARN' | 'ERROR' | 'MEDIA' | 'SYSTEM', source: string, message: string };
 
@@ -560,9 +560,16 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    const userMessage: ChatMessage = { role: 'user', content: finalInput };
+    const attachmentNames = stagedContextFiles.length > 0 
+      ? stagedContextFiles.map(f => f.split('/').pop() || f) 
+      : undefined;
+
+    const userMessage: ChatMessage = { role: 'user', content: input, attachments: attachmentNames };
     const currentSession = state.sessions.find(s => s.id === sessionId);
     const newMessages = [...(currentSession?.messages || []), userMessage];
+    
+    const networkUserMessage = { role: 'user', content: finalInput };
+    const networkMessages = [...(currentSession?.messages || []).map(m => ({ role: m.role, content: m.content })), networkUserMessage];
 
     state.setActiveSession(sessionId);
     state.addMessageToActiveSession(userMessage);
@@ -589,7 +596,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const payload: any = {
         model: activeAgent.modelName.trim(),
-        messages: [{ role: 'system', content: buildSystemPrompt() }, ...newMessages],
+        messages: [{ role: 'system', content: buildSystemPrompt() }, ...networkMessages],
         stream: true
       };
       

@@ -140,6 +140,22 @@ const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: any }) {
             {msg.content}
           </Markdown>
         </div>
+        
+        {msg.attachments && msg.attachments.length > 0 && (
+          <details className={`mt-2 text-xs border-t pt-2 ${msg.role === 'user' ? 'border-white/20' : 'border-soma-border'}`}>
+            <summary className="cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+              📎 {msg.attachments.length} file(s) attached
+            </summary>
+            <div className="mt-2 space-y-1 pl-4 opacity-80">
+              {msg.attachments.map((file: string, i: number) => (
+                <div key={i} className="flex items-center gap-1">
+                  <span>{getFileIcon(file)}</span>
+                  <span className="truncate">{file}</span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
       {msg.role === 'assistant' && (
         <GlobalCopyButton content={msg.content} />
