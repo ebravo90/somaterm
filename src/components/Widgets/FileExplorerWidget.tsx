@@ -8,6 +8,7 @@ interface FileNode {
   path: string;
   is_dir: boolean;
   children?: FileNode[];
+  isExpanded?: boolean;
 }
 
 function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: number; onUpdateNode: (path: string, children: FileNode[]) => void }) {
@@ -22,13 +23,15 @@ function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: nu
         try {
           const root: FileNode = await invoke('get_file_tree', { targetPath: node.path, maxDepth: 1 });
           onUpdateNode(node.path, root.children || []);
+          setIsOpen(true);
         } catch (err) {
-          console.error('Failed to fetch children', err);
+          console.error(`Failed to fetch children for path: ${node.path}`, err);
         } finally {
           setLoading(false);
         }
+      } else {
+        setIsOpen(!isOpen);
       }
-      setIsOpen(!isOpen);
     }
   };
 
@@ -144,17 +147,27 @@ export function FileExplorerWidget() {
     setTree(prev => {
       if (!prev) return prev;
       
-      const updateNode = (node: FileNode): FileNode => {
+      const updateNodeInTree = (node: FileNode): FileNode => {
         if (node.path === path) {
-          return { ...node, children: newChildren };
+          return { ...node, children: newChildren, isExpanded: true };
         }
         if (node.children) {
-          return { ...node, children: node.children.map(updateNode) };
+          let changed = false;
+          const updatedChildren = node.children.map(child => {
+            const updatedChild = updateNodeInTree(child);
+            if (updatedChild !== child) {
+              changed = true;
+            }
+            return updatedChild;
+          });
+          if (changed) {
+            return { ...node, children: updatedChildren };
+          }
         }
         return node;
       };
       
-      return updateNode(prev);
+      return updateNodeInTree(prev);
     });
   };
 
