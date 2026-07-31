@@ -11,7 +11,7 @@ interface FileNode {
   isExpanded?: boolean;
 }
 
-function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void, onContextMenuNode?: (e: React.MouseEvent, path: string) => void }) {
+function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNode, selectedPaths = [] }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void, onContextMenuNode?: (e: React.MouseEvent, path: string) => void, onSelectNode?: (e: React.MouseEvent, path: string) => void, selectedPaths?: string[] }) {
   const [loading, setLoading] = useState(false);
   const isExpanded = level === 0 || !!node.isExpanded;
 
@@ -54,9 +54,12 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode }: { node: 
   return (
     <div className="select-none">
       <div 
-        className="flex items-center py-1 px-2 hover:bg-soma-border/30 cursor-pointer transition-colors group"
+        className={`flex items-center py-1 px-2 hover:bg-soma-border/30 cursor-pointer transition-colors group ${selectedPaths.includes(node.path) ? 'bg-soma-border/50' : ''}`}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
-        onClick={toggle}
+        onClick={(e) => {
+          if (onSelectNode) onSelectNode(e, node.path);
+          toggle(e);
+        }}
         onContextMenu={handleContextMenu}
       >
         <div className="w-4 h-4 flex items-center justify-center mr-1 shrink-0">
@@ -80,7 +83,7 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode }: { node: 
             </div>
           ) : (
             node.children.map((child, idx) => (
-              <FileTreeItem key={`${child.path}-${idx}`} node={child} level={level + 1} onUpdateNode={onUpdateNode} onContextMenuNode={onContextMenuNode} />
+              <FileTreeItem key={`${child.path}-${idx}`} node={child} level={level + 1} onUpdateNode={onUpdateNode} onContextMenuNode={onContextMenuNode} onSelectNode={onSelectNode} selectedPaths={selectedPaths} />
             ))
           )}
         </div>
@@ -90,8 +93,10 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode }: { node: 
 }
 
 export function FileExplorerWidget() {
-  const { closeWidget, addContextFile, setActiveWidget } = useAppStore();
+  const { closeWidget, addContextFile, setActiveWidget, createSession, setActiveSession, selectedAgentId, activeSessionId } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
+  const [showSubMenu, setShowSubMenu] = useState(false);
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [tree, setTree] = useState<FileNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -186,25 +191,50 @@ export function FileExplorerWidget() {
     });
   };
 
+  const handleSelectNode = (e: React.MouseEvent, path: string) => {
+    e.stopPropagation();
+    if (e.metaKey || e.ctrlKey) {
+      setSelectedPaths(prev => 
+        prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
+      );
+    } else {
+      setSelectedPaths([path]);
+    }
+  };
+
   const handleContextMenuNode = (e: React.MouseEvent, path: string) => {
+    if (!selectedPaths.includes(path)) {
+      setSelectedPaths([path]);
+    }
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
       path,
     });
+    setShowSubMenu(false);
   };
 
   useEffect(() => {
-    const closeMenu = () => setContextMenu(null);
+    const closeMenu = () => {
+      setContextMenu(null);
+      setShowSubMenu(false);
+    };
     window.addEventListener('click', closeMenu);
     return () => window.removeEventListener('click', closeMenu);
   }, []);
 
-  const handleAddContext = (e: React.MouseEvent) => {
+  const handleAddContext = (e: React.MouseEvent, target: 'active' | 'new') => {
     e.stopPropagation();
     if (contextMenu) {
-      addContextFile(contextMenu.path);
+      if (target === 'new') {
+        if (selectedAgentId) {
+          const newSessionId = createSession(selectedAgentId);
+          setActiveSession(newSessionId);
+        }
+      }
+      selectedPaths.forEach(p => addContextFile(p));
       setContextMenu(null);
+      setShowSubMenu(false);
       setActiveWidget({ type: 'agent' });
     }
   };
@@ -272,23 +302,48 @@ export function FileExplorerWidget() {
         {error && <div className="text-sm text-red-500 p-4 bg-red-900/20 rounded border border-red-900/50">{error}</div>}
         {!loading && !error && tree && (
           <div className="pb-8">
-            <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} onContextMenuNode={handleContextMenuNode} />
+            <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} onContextMenuNode={handleContextMenuNode} onSelectNode={handleSelectNode} selectedPaths={selectedPaths} />
           </div>
         )}
       </div>
 
       {contextMenu && (
         <div 
-          className="fixed z-50 bg-soma-panel border border-soma-border rounded shadow-md py-1 min-w-[140px]"
+          className="fixed z-50 bg-soma-panel border border-soma-border rounded shadow-md py-1 min-w-[160px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button 
-            className="w-full text-left px-3 py-1 text-sm text-soma-text hover:bg-soma-border transition-colors flex items-center gap-2"
-            onClick={handleAddContext}
-          >
-            ✨ Send to Agent
-          </button>
+          <div className="flex items-center w-full relative">
+            <button 
+              className="flex-1 text-left px-3 py-1 text-sm text-soma-text hover:bg-soma-border transition-colors flex items-center gap-2"
+              onClick={(e) => handleAddContext(e, 'active')}
+            >
+              ✨ Send to Agent
+            </button>
+            <button 
+              className="px-2 py-1 text-soma-text hover:bg-soma-border transition-colors border-l border-soma-border/50"
+              onClick={(e) => { e.stopPropagation(); setShowSubMenu(!showSubMenu); }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+
+            {showSubMenu && (
+              <div className="absolute top-0 left-full ml-1 bg-soma-panel border border-soma-border rounded shadow-md py-1 min-w-[140px]">
+                 <button 
+                   className="w-full text-left px-3 py-1 text-sm text-soma-text hover:bg-soma-border transition-colors"
+                   onClick={(e) => handleAddContext(e, 'active')}
+                 >
+                   Active Chat
+                 </button>
+                 <button 
+                   className="w-full text-left px-3 py-1 text-sm text-soma-text hover:bg-soma-border transition-colors"
+                   onClick={(e) => handleAddContext(e, 'new')}
+                 >
+                   New Chat
+                 </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -76,6 +76,7 @@ If the user's prompt includes a \`\`\`console block, treat it as the absolute so
 2. Extreme Brevity: Explanations must be 2 sentences maximum.
 3. Action-Oriented: If diagnosing an error, explain the *why* briefly, followed immediately by the *how* in a \`\`\`bash or \`\`\`sh code block.
 4. Language Support: If providing Python code, use \`\`\`python blocks.
+5. Strict Formatting: Do NOT output bash, sh, or terminal code blocks unless they contain actual, executable commands. Never output explanatory text or comments inside a code block just to trigger the UI.
   `.trim();
 };
 
