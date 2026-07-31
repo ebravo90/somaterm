@@ -54,3 +54,6 @@ You are strictly forbidden from executing `git push` automatically after complet
 1. **Local Commits Only:** Once you finish an implementation, run the tests, and verify that the Playwright test suite passes at 100%, you are authorized to stage (`git add`) and commit (`git commit`) your changes locally. 
 2. **Explicit Push Consent:** You MUST NOT push code to any remote branch (e.g., `master`, `main`) under any circumstances, unless the user explicitly commands you to do so with phrases like "push to master" or "push the changes".
 3. **End of Task State:** Upon completing a task and committing locally, simply report your status, summarize the test results, and wait for the user's explicit next instruction.
+
+## THE SPLIT-PANE RULE
+From now on, you MUST strictly adhere to this architectural rule for all current and future UI components: Always integrate new widgets, panels, or tools into the existing Split-Pane container (managed by `activeWidget` in `App.tsx`) BEFORE ever considering creating a new window, floating modal, or detached overlay. Do not create new OS-level windows or global modals unless explicitly instructed by me.
