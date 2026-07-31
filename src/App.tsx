@@ -9,6 +9,7 @@ import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebvie
 import { AgentWidget } from './components/Widgets/AgentWidget';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
 import { FileExplorerWidget } from './components/Widgets/FileExplorerWidget';
+import { AiChatWidget } from './components/Widgets/AiChatWidget';
 import { SettingsModal } from './components/SettingsModal';
 import { DebugConsole } from './components/DebugConsole';
 
@@ -359,6 +360,8 @@ function App() {
             <WebManagerWidget />
           ) : activeWidget.type === 'file_explorer' ? (
             <FileExplorerWidget />
+          ) : activeWidget.type === 'ai_chat' ? (
+            <AiChatWidget />
           ) : (
             <AgentWidget />
           )}

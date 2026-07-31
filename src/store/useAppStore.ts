@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 
-export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' } | { type: 'file_explorer' };
+export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' } | { type: 'file_explorer' } | { type: 'ai_chat' };
 
 export interface TerminalSession {
   id: string;
@@ -163,6 +163,10 @@ interface AppState {
   addTerminal: () => void;
   renameTerminal: (id: string, name: string) => void;
   closeTerminal: (id: string) => Promise<void>;
+  
+  stagedContextFiles: string[];
+  addContextFile: (path: string) => void;
+  removeContextFile: (path: string) => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -188,6 +192,14 @@ function normalizeUrl(rawUrl: string): string {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  stagedContextFiles: [],
+  addContextFile: (path) => set((state) => ({
+    stagedContextFiles: state.stagedContextFiles.includes(path) ? state.stagedContextFiles : [...state.stagedContextFiles, path]
+  })),
+  removeContextFile: (path) => set((state) => ({
+    stagedContextFiles: state.stagedContextFiles.filter(p => p !== path)
+  })),
+  
   activeWidget: null,
   setActiveWidget: (widget) => set((state) => {
     let newActiveWebId = state.activeWebId;

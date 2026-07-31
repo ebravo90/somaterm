@@ -11,14 +11,14 @@ interface FileNode {
   isExpanded?: boolean;
 }
 
-function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void }) {
+function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void, onContextMenuNode?: (e: React.MouseEvent, path: string) => void }) {
   const [loading, setLoading] = useState(false);
   const isExpanded = level === 0 || !!node.isExpanded;
 
   const toggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (node.is_dir) {
-      if (!isExpanded && node.children === undefined) {
+      if (!isExpanded && !node.children) {
         setLoading(true);
         try {
           const root: FileNode = await invoke('get_file_tree', { targetPath: node.path, maxDepth: 1 });
@@ -44,12 +44,20 @@ function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: nu
     return '📄';
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (!node.is_dir && onContextMenuNode) {
+      e.preventDefault();
+      onContextMenuNode(e, node.path);
+    }
+  };
+
   return (
     <div className="select-none">
       <div 
         className="flex items-center py-1 px-2 hover:bg-soma-border/30 cursor-pointer transition-colors group"
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={toggle}
+        onContextMenu={handleContextMenu}
       >
         <div className="w-4 h-4 flex items-center justify-center mr-1 shrink-0">
           {node.is_dir && (
@@ -66,9 +74,15 @@ function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: nu
       </div>
       {node.is_dir && isExpanded && node.children && (
         <div>
-          {node.children.map((child, idx) => (
-            <FileTreeItem key={`${child.path}-${idx}`} node={child} level={level + 1} onUpdateNode={onUpdateNode} />
-          ))}
+          {node.children.length === 0 ? (
+            <div className="py-1 text-xs text-soma-text-muted italic opacity-50 select-none" style={{ paddingLeft: `${(level + 1) * 16 + 8}px` }}>
+              Empty folder
+            </div>
+          ) : (
+            node.children.map((child, idx) => (
+              <FileTreeItem key={`${child.path}-${idx}`} node={child} level={level + 1} onUpdateNode={onUpdateNode} onContextMenuNode={onContextMenuNode} />
+            ))
+          )}
         </div>
       )}
     </div>
@@ -76,7 +90,8 @@ function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: nu
 }
 
 export function FileExplorerWidget() {
-  const { closeWidget } = useAppStore();
+  const { closeWidget, addContextFile, setActiveWidget } = useAppStore();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const [tree, setTree] = useState<FileNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +186,29 @@ export function FileExplorerWidget() {
     });
   };
 
+  const handleContextMenuNode = (e: React.MouseEvent, path: string) => {
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      path,
+    });
+  };
+
+  useEffect(() => {
+    const closeMenu = () => setContextMenu(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
+  }, []);
+
+  const handleAddContext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (contextMenu) {
+      addContextFile(contextMenu.path);
+      setContextMenu(null);
+      setActiveWidget({ type: 'ai_chat' });
+    }
+  };
+
   return (
     <div className="@container w-full h-full flex flex-col bg-soma-panel relative">
       <div className="h-10 flex items-center justify-between px-4 border-b border-soma-border shrink-0">
@@ -234,10 +272,25 @@ export function FileExplorerWidget() {
         {error && <div className="text-sm text-red-500 p-4 bg-red-900/20 rounded border border-red-900/50">{error}</div>}
         {!loading && !error && tree && (
           <div className="pb-8">
-            <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} />
+            <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} onContextMenuNode={handleContextMenuNode} />
           </div>
         )}
       </div>
+
+      {contextMenu && (
+        <div 
+          className="fixed z-50 bg-soma-panel border border-soma-border rounded shadow-md py-1 min-w-[140px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            className="w-full text-left px-3 py-1 text-sm text-soma-text hover:bg-soma-border transition-colors flex items-center gap-2"
+            onClick={handleAddContext}
+          >
+            ✨ Send to Agent
+          </button>
+        </div>
+      )}
     </div>
   );
 }

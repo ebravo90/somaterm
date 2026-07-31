@@ -61,9 +61,9 @@ describe('File Explorer Widget Tests', () => {
         await widgetContainer.waitForExist({ timeout: 5000 });
 
         // 9. Wait for the file tree to load
-        const workspaceNode = await $('span=Workspace');
+        const srcNode = await $('//span[text()="src"]');
         try {
-            await workspaceNode.waitForExist({ timeout: 10000 });
+            await srcNode.waitForExist({ timeout: 10000 });
         } catch (e) {
             const html = await $('body').getHTML();
             console.error("BODY HTML WHEN FAILING AT INITIAL LOAD:", html);
@@ -75,7 +75,6 @@ describe('File Explorer Widget Tests', () => {
         expect(await nodeModulesNode.isExisting()).toBe(false);
 
         // 11. Test Chevron Lazy Loading
-        const srcNode = await $('span=src');
         await srcNode.waitForExist({ timeout: 5000 });
         
         // Ensure child is NOT present yet
@@ -90,14 +89,14 @@ describe('File Explorer Widget Tests', () => {
         expect(await mainTsxNode.isExisting()).toBe(true);
 
         // 12. Test Go Up navigation
-        const upButton = await $('button[aria-label="Go Up"]');
+        const upButton = await $('button[title="Go Up"]');
         await upButton.waitForExist({ timeout: 5000 });
         await upButton.click();
         
         // Wait for reload to complete
-        const reloadedWorkspaceNode = await $('span=Workspace');
+        const reloadedSrcNode = await $('//span[text()="src"]');
         try {
-            await reloadedWorkspaceNode.waitForExist({ timeout: 5000 });
+            await reloadedSrcNode.waitForExist({ timeout: 5000 });
         } catch (e) {
             const html = await $('body').getHTML();
             console.error("BODY HTML WHEN FAILING:", html);
