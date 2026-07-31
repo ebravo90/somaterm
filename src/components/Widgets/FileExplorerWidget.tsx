@@ -11,7 +11,7 @@ interface FileNode {
   isExpanded?: boolean;
 }
 
-function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNode, selectedPaths = [] }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void, onContextMenuNode?: (e: React.MouseEvent, path: string) => void, onSelectNode?: (e: React.MouseEvent, path: string) => void, selectedPaths?: string[] }) {
+function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNode, selectedPaths = [], showRelativePath = false }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void, onContextMenuNode?: (e: React.MouseEvent, path: string) => void, onSelectNode?: (e: React.MouseEvent, path: string) => void, selectedPaths?: string[], showRelativePath?: boolean }) {
   const [loading, setLoading] = useState(false);
   const isExpanded = level === 0 || !!node.isExpanded;
 
@@ -73,7 +73,12 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNo
           )}
         </div>
         <span className="mr-1.5 text-sm opacity-80">{getIcon()}</span>
-        <span className="text-sm text-soma-text truncate">{node.name}</span>
+        <div className="flex flex-col overflow-hidden">
+          <span className="text-sm text-soma-text truncate">{node.name}</span>
+          {showRelativePath && (
+            <span className="text-[10px] text-gray-500 truncate mt-[-2px]">{node.path.split(/[/\\]/).slice(0, -1).join('/') || '/'}</span>
+          )}
+        </div>
       </div>
       {node.is_dir && isExpanded && node.children && (
         <div>
@@ -101,6 +106,10 @@ export function FileExplorerWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rootPath, setRootPath] = useState<string | null>(null);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<FileNode[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     async function loadInitial() {
@@ -139,6 +148,25 @@ export function FileExplorerWidget() {
   useEffect(() => {
     loadTree();
   }, [rootPath]);
+
+  useEffect(() => {
+    if (!searchQuery.trim() || !rootPath) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await invoke<FileNode[]>('search_files', { targetPath: rootPath, query: searchQuery });
+        setSearchResults(results);
+      } catch (err) {
+        console.error("Search failed:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, rootPath]);
 
   const handleGoUp = async () => {
     if (!rootPath) return;
@@ -297,10 +325,46 @@ export function FileExplorerWidget() {
         </div>
       </div>
 
+      <div className="px-3 py-2 border-b border-soma-border shrink-0 bg-soma-background/50 relative">
+        <div className="relative flex items-center">
+          <svg className="absolute left-2 text-soma-text-muted" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input 
+            type="text" 
+            placeholder="Search workspace..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full bg-[#1e1e1e] border border-soma-border rounded-md pl-8 pr-3 py-1.5 text-xs text-soma-text focus:outline-none focus:border-soma-accent transition-colors"
+          />
+        </div>
+      </div>
+
       <div className="grow overflow-y-auto p-2">
-        {loading && <div className="text-sm text-soma-text-muted p-4 text-center animate-pulse">Loading workspace...</div>}
+        {loading && !searchQuery && <div className="text-sm text-soma-text-muted p-4 text-center animate-pulse">Loading workspace...</div>}
+        {isSearching && <div className="text-sm text-soma-text-muted p-4 text-center animate-pulse">Searching...</div>}
         {error && <div className="text-sm text-red-500 p-4 bg-red-900/20 rounded border border-red-900/50">{error}</div>}
-        {!loading && !error && tree && (
+        
+        {searchQuery.trim() && !isSearching && searchResults.length === 0 && (
+          <div className="text-xs text-soma-text-muted p-4 text-center">No results found for "{searchQuery}"</div>
+        )}
+        
+        {searchQuery.trim() && searchResults.length > 0 && (
+          <div className="pb-8">
+            {searchResults.map((node, idx) => (
+              <FileTreeItem 
+                key={`${node.path}-${idx}`} 
+                node={node} 
+                level={0} 
+                onUpdateNode={handleUpdateNode} 
+                onContextMenuNode={handleContextMenuNode} 
+                onSelectNode={handleSelectNode} 
+                selectedPaths={selectedPaths} 
+                showRelativePath={true}
+              />
+            ))}
+          </div>
+        )}
+
+        {!searchQuery.trim() && !loading && !error && tree && (
           <div className="pb-8">
             <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} onContextMenuNode={handleContextMenuNode} onSelectNode={handleSelectNode} selectedPaths={selectedPaths} />
           </div>

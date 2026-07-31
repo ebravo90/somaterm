@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import type { AgentProfile, Session } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -766,6 +767,21 @@ export function AgentWidget() {
     });
   };
 
+  const handleAddFiles = async () => {
+    try {
+      const selected = await open({
+        multiple: true,
+      });
+      if (Array.isArray(selected)) {
+        selected.forEach(path => store.addContextFile(path));
+      } else if (selected) {
+        store.addContextFile(selected);
+      }
+    } catch (e) {
+      console.error("Failed to open file dialog", e);
+    }
+  };
+
 
 
   return (
@@ -916,30 +932,50 @@ export function AgentWidget() {
                   })}
                 </div>
               )}
-              <div className="flex items-center gap-2">
+              <div className="relative flex items-center bg-[#1e1e1e] border border-soma-border rounded-full shadow-inner focus-within:border-soma-accent transition-colors">
+                <button 
+                  className="absolute left-1.5 w-7 h-7 flex items-center justify-center rounded-full text-soma-text-muted hover:bg-soma-border/50 hover:text-soma-text transition-colors cursor-pointer z-10"
+                  title="Add Context Files"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
                 <input 
                   type="text" 
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
                   placeholder="Ask the agent..."
-                  disabled={!selectedAgentId || onlineAgents.length === 0 || isGenerating}
-                  className="w-full bg-soma-panel border border-soma-border rounded-md px-3 py-2 text-sm text-soma-text focus:outline-none focus:border-soma-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!selectedAgentId || onlineAgents.length === 0}
+                  className="w-full bg-transparent rounded-full pl-10 pr-10 py-2.5 text-sm text-soma-text focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                {isGenerating && (
+                
+                {isGenerating ? (
                   <button
                     onClick={() => store.stopGeneration()}
-                    className="hidden @[250px]:block bg-red-600/20 hover:bg-red-600/40 text-red-500 hover:text-red-400 p-2 rounded-md transition-colors border border-red-600/30 flex-shrink-0 cursor-pointer animate-pulse"
+                    className="absolute right-1.5 w-7 h-7 flex items-center justify-center rounded-full hover:bg-soma-border/50 transition-colors cursor-pointer z-10 group"
                     title="Stop Generation"
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <div className="w-3 h-3 bg-soma-text-muted group-hover:bg-red-500 rounded-[2px] transition-colors"></div>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSend}
+                    disabled={!selectedAgentId || onlineAgents.length === 0 || (!input.trim() && stagedContextFiles.length === 0)}
+                    className="absolute right-1.5 w-7 h-7 flex items-center justify-center rounded-full bg-soma-accent hover:bg-soma-accent/80 text-white transition-colors cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Send Message"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13"></line>
+                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
                   </button>
                 )}
               </div>
               {onlineAgents.length === 0 && (
-                <div className="text-[10px] text-red-400">
+                <div className="text-[10px] text-red-400 pl-2">
                   No verified agents. Go to Settings to configure an agent.
                 </div>
               )}
