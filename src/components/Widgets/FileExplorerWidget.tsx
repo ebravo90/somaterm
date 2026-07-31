@@ -205,7 +205,7 @@ export function FileExplorerWidget() {
     if (contextMenu) {
       addContextFile(contextMenu.path);
       setContextMenu(null);
-      setActiveWidget({ type: 'ai_chat' });
+      setActiveWidget({ type: 'agent' });
     }
   };
 
