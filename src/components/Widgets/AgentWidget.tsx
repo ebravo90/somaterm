@@ -110,6 +110,24 @@ function GlobalCopyButton({ content }: { content: string }) {
   );
 }
 
+function getFileIcon(filename: string) {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'rs':
+    case 'ts':
+    case 'tsx':
+    case 'js':
+    case 'jsx':
+    case 'json':
+    case 'md':
+    case 'css':
+    case 'html':
+      return '📄';
+    default:
+      return '📄';
+  }
+}
+
 const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: any }) {
   return (
     <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
@@ -712,24 +730,6 @@ export function AgentWidget() {
   }, [currentMessages, isScrolledUp]);
 
 
-
-function getFileIcon(filename: string) {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'rs':
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
-    case 'json':
-    case 'md':
-    case 'css':
-    case 'html':
-      return '📄';
-    default:
-      return '📄';
-  }
-}
 
   const store = useAppStore();
   const handleSend = async () => {
