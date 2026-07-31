@@ -81,12 +81,25 @@ export function setupTauriMocks() {
     }
     
     if (cmd === "get_file_tree") {
+      // Mock different responses based on path to verify lazy loading
+      if (args.targetPath === "/src") {
+        return {
+          name: "src",
+          path: "/src",
+          is_dir: true,
+          children: [
+            { name: "main.tsx", path: "/src/main.tsx", is_dir: false },
+            { name: "App.tsx", path: "/src/App.tsx", is_dir: false }
+          ]
+        };
+      }
+
       return {
         name: "Workspace",
         path: "/",
         is_dir: true,
         children: [
-          { name: "src", path: "/src", is_dir: true, children: [] },
+          { name: "src", path: "/src", is_dir: true }, // No children array to trigger lazy load
           { name: "package.json", path: "/package.json", is_dir: false },
           { name: "README.md", path: "/README.md", is_dir: false }
         ]

@@ -74,11 +74,22 @@ describe('File Explorer Widget Tests', () => {
         const nodeModulesNode = await $('span=node_modules');
         expect(await nodeModulesNode.isExisting()).toBe(false);
 
-        // 11. Test Go Up navigation via dropdown
-        const dropdownToggle = await $('button[aria-label="Workspace Dropdown"]');
-        await dropdownToggle.waitForExist({ timeout: 5000 });
-        await dropdownToggle.click();
+        // 11. Test Chevron Lazy Loading
+        const srcNode = await $('span=src');
+        await srcNode.waitForExist({ timeout: 5000 });
+        
+        // Ensure child is NOT present yet
+        const mainTsxNode = await $('span=main.tsx');
+        expect(await mainTsxNode.isExisting()).toBe(false);
+        
+        // Click src folder to expand it
+        await srcNode.click();
+        
+        // Wait for main.tsx to appear
+        await mainTsxNode.waitForExist({ timeout: 5000 });
+        expect(await mainTsxNode.isExisting()).toBe(true);
 
+        // 12. Test Go Up navigation
         const upButton = await $('button[aria-label="Go Up"]');
         await upButton.waitForExist({ timeout: 5000 });
         await upButton.click();

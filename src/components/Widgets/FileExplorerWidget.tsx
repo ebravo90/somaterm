@@ -44,12 +44,22 @@ function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: nu
   return (
     <div className="select-none">
       <div 
-        className="flex items-center py-1 px-2 hover:bg-soma-border/30 cursor-pointer transition-colors"
+        className="flex items-center py-1 px-2 hover:bg-soma-border/30 cursor-pointer transition-colors group"
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={toggle}
       >
-        <span className="mr-2 text-sm opacity-80">{getIcon()}</span>
-        <span className="text-sm font-medium text-soma-text truncate">{node.name}</span>
+        <div className="w-4 h-4 flex items-center justify-center mr-1 shrink-0">
+          {node.is_dir && (
+            <svg 
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              className={`transition-transform duration-200 text-soma-text-muted group-hover:text-soma-text ${isOpen ? 'rotate-90' : ''}`}
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          )}
+        </div>
+        <span className="mr-1.5 text-sm opacity-80">{getIcon()}</span>
+        <span className="text-sm text-soma-text truncate">{node.name}</span>
       </div>
       {node.is_dir && isOpen && node.children && (
         <div>
@@ -68,7 +78,6 @@ export function FileExplorerWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rootPath, setRootPath] = useState<string | null>(null);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     async function loadInitial() {
@@ -90,21 +99,21 @@ export function FileExplorerWidget() {
     loadInitial();
   }, []);
 
-  useEffect(() => {
+  const loadTree = async () => {
     if (!rootPath) return;
-    
-    async function loadTree() {
-      setLoading(true);
-      setError(null);
-      try {
-        const root: FileNode = await invoke('get_file_tree', { targetPath: rootPath, maxDepth: 1 });
-        setTree(root);
-      } catch (err: any) {
-        setError(err.toString());
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    setError(null);
+    try {
+      const root: FileNode = await invoke('get_file_tree', { targetPath: rootPath, maxDepth: 1 });
+      setTree(root);
+    } catch (err: any) {
+      setError(err.toString());
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     loadTree();
   }, [rootPath]);
 
@@ -171,36 +180,40 @@ export function FileExplorerWidget() {
         </button>
       </div>
       
-      <div className="h-10 flex items-center px-4 border-b border-soma-border shrink-0 bg-soma-background/50 relative">
-        <button
-          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="flex items-center gap-1.5 text-sm font-medium text-soma-text hover:text-white truncate cursor-pointer transition-colors max-w-full"
-          title={rootPath || ''}
-          aria-label="Workspace Dropdown"
-        >
-          <span className="truncate">{rootPath ? rootPath.split(/[/\\]/).pop() || rootPath : 'Loading...'}</span>
-          <span className="text-[10px] opacity-70">▼</span>
-        </button>
-
-        {isDropdownOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
-            <div className="absolute top-10 left-4 z-50 mt-1 min-w-[200px] bg-soma-panel border border-soma-border rounded shadow-xl py-1">
-              <button
-                onClick={() => {
-                  handleGoUp();
-                  setIsDropdownOpen(false);
-                }}
-                disabled={rootPath === '/' || rootPath === 'C:\\'}
-                aria-label="Go Up"
-                className="w-full text-left px-3 py-1.5 text-sm text-soma-text hover:bg-soma-border transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <span className="opacity-80">📁</span>
-                <span>...</span>
-              </button>
-            </div>
-          </>
-        )}
+      <div className="h-9 flex items-center justify-between px-3 border-b border-soma-border shrink-0 bg-soma-background/50 relative">
+        <span className="truncate flex-1 text-xs text-soma-text-muted font-semibold uppercase tracking-wider mr-2">
+          {rootPath ? rootPath.split(/[/\\]/).pop() || rootPath : 'WORKSPACE'}
+        </span>
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={handleGoUp} 
+            disabled={rootPath === '/' || rootPath === 'C:\\'} 
+            className="p-1 text-soma-text-muted hover:text-soma-text hover:bg-soma-border rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors" 
+            title="Go Up"
+            aria-label="Go Up"
+          >
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+          <button 
+            onClick={loadTree} 
+            className="p-1 text-soma-text-muted hover:text-soma-text hover:bg-soma-border rounded transition-colors" 
+            title="Refresh"
+          >
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6M3 12a9 9 0 1 0 2.6-6.4L2 8"/></svg>
+          </button>
+          <button 
+            className="p-1 text-soma-text-muted hover:text-soma-text hover:bg-soma-border rounded transition-colors opacity-50 cursor-not-allowed" 
+            title="New File (Coming Soon)"
+          >
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </button>
+          <button 
+            className="p-1 text-soma-text-muted hover:text-soma-text hover:bg-soma-border rounded transition-colors opacity-50 cursor-not-allowed" 
+            title="New Folder (Coming Soon)"
+          >
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+          </button>
+        </div>
       </div>
 
       <div className="grow overflow-y-auto p-2">
