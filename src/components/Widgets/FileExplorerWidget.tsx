@@ -11,33 +11,33 @@ interface FileNode {
   isExpanded?: boolean;
 }
 
-function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: number; onUpdateNode: (path: string, children: FileNode[]) => void }) {
-  const [isOpen, setIsOpen] = useState(level === 0);
+function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void }) {
   const [loading, setLoading] = useState(false);
+  const isExpanded = level === 0 || !!node.isExpanded;
 
   const toggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (node.is_dir) {
-      if (!isOpen && node.children === undefined) {
+      if (!isExpanded && node.children === undefined) {
         setLoading(true);
         try {
           const root: FileNode = await invoke('get_file_tree', { targetPath: node.path, maxDepth: 1 });
-          onUpdateNode(node.path, root.children || []);
-          setIsOpen(true);
+          console.log('Fetched children:', root.children);
+          onUpdateNode(node.path, { children: root.children || [], isExpanded: true });
         } catch (err) {
           console.error(`Failed to fetch children for path: ${node.path}`, err);
         } finally {
           setLoading(false);
         }
       } else {
-        setIsOpen(!isOpen);
+        onUpdateNode(node.path, { isExpanded: !isExpanded });
       }
     }
   };
 
   const getIcon = () => {
     if (loading) return '⏳';
-    if (node.is_dir) return isOpen ? '📂' : '📁';
+    if (node.is_dir) return isExpanded ? '📂' : '📁';
     if (node.name.endsWith('.rs')) return '🦀';
     if (node.name.endsWith('.ts') || node.name.endsWith('.tsx')) return '📘';
     if (node.name.endsWith('.md')) return '📝';
@@ -55,7 +55,7 @@ function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: nu
           {node.is_dir && (
             <svg 
               width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-              className={`transition-transform duration-200 text-soma-text-muted group-hover:text-soma-text ${isOpen ? 'rotate-90' : ''}`}
+              className={`transition-transform duration-200 text-soma-text-muted group-hover:text-soma-text ${isExpanded ? 'rotate-90' : ''}`}
             >
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
@@ -64,7 +64,7 @@ function FileTreeItem({ node, level, onUpdateNode }: { node: FileNode; level: nu
         <span className="mr-1.5 text-sm opacity-80">{getIcon()}</span>
         <span className="text-sm text-soma-text truncate">{node.name}</span>
       </div>
-      {node.is_dir && isOpen && node.children && (
+      {node.is_dir && isExpanded && node.children && (
         <div>
           {node.children.map((child, idx) => (
             <FileTreeItem key={`${child.path}-${idx}`} node={child} level={level + 1} onUpdateNode={onUpdateNode} />
@@ -143,13 +143,13 @@ export function FileExplorerWidget() {
     }
   };
 
-  const handleUpdateNode = (path: string, newChildren: FileNode[]) => {
+  const handleUpdateNode = (path: string, updates: Partial<FileNode>) => {
     setTree(prev => {
       if (!prev) return prev;
       
       const updateNodeInTree = (node: FileNode): FileNode => {
         if (node.path === path) {
-          return { ...node, children: newChildren, isExpanded: true };
+          return { ...node, ...updates };
         }
         if (node.children) {
           let changed = false;
