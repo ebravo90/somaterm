@@ -653,3 +653,8 @@ pub fn get_initial_cwd() -> Result<String, String> {
         .map(|p| p.to_string_lossy().into_owned())
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn read_file_content(path: String) -> Result<String, String> {
+    std::fs::read_to_string(path).map_err(|e| e.to_string())
+}

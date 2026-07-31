@@ -697,10 +697,37 @@ export function AgentWidget() {
 
 
 
+function getFileIcon(filename: string) {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'rs':
+    case 'ts':
+    case 'tsx':
+    case 'js':
+    case 'jsx':
+    case 'json':
+    case 'md':
+    case 'css':
+    case 'html':
+      return '📄';
+    default:
+      return '📄';
+  }
+}
+
   const store = useAppStore();
   const handleSend = async () => {
-    if (!input.trim() || !selectedAgentId) return;
-    const sentInput = input;
+    if (!selectedAgentId) return;
+    
+    let sentInput = input;
+    if (!sentInput.trim()) {
+      if (stagedContextFiles && stagedContextFiles.length > 0) {
+        sentInput = "Please review the attached file(s) for context. Acknowledge that you have read them.";
+      } else {
+        return;
+      }
+    }
+    
     setInput('');
     await store.sendMessage(sentInput);
   };
@@ -861,7 +888,7 @@ export function AgentWidget() {
                     const name = file.split('/').pop() || file;
                     return (
                       <div key={file} className="flex items-center gap-1 bg-soma-bg/80 backdrop-blur border border-soma-border rounded-full px-3 py-1 text-xs text-soma-text">
-                        <span>📄 {name}</span>
+                        <span>{getFileIcon(name)} {name}</span>
                         <button 
                           onClick={() => removeContextFile(file)}
                           className="ml-1 text-soma-text-muted hover:text-red-400 transition-colors cursor-pointer"

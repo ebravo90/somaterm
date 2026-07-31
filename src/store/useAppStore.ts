@@ -167,6 +167,7 @@ interface AppState {
   stagedContextFiles: string[];
   addContextFile: (path: string) => void;
   removeContextFile: (path: string) => void;
+  clearContextFiles: () => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -199,6 +200,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeContextFile: (path) => set((state) => ({
     stagedContextFiles: state.stagedContextFiles.filter(p => p !== path)
   })),
+  clearContextFiles: () => set({ stagedContextFiles: [] }),
   
   activeWidget: null,
   setActiveWidget: (widget) => set((state) => {
@@ -521,6 +523,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
 
+    let finalInput = input;
+    const { stagedContextFiles, clearContextFiles } = get();
+    
+    if (stagedContextFiles.length > 0) {
+      let fileContents = "";
+      for (const path of stagedContextFiles) {
+        try {
+          const content = await invoke<string>('read_file_content', { path });
+          const filename = path.split('/').pop() || path;
+          fileContents += `\n\n--- File: ${filename} ---\n\`\`\`\n${content}\n\`\`\``;
+        } catch (e) {
+          console.error(`Failed to read staged file ${path}:`, e);
+          fileContents += `\n\n--- File: ${path} ---\n[Error reading file content]`;
+        }
+      }
+      
+      finalInput = `${input}\n\n<Attached Context>${fileContents}\n</Attached Context>`;
+    }
+
     const activeAgent = state.agents.find(a => a.id === state.selectedAgentId);
     if (!activeAgent) return;
 
@@ -539,12 +560,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    const userMessage: ChatMessage = { role: 'user', content: input };
+    const userMessage: ChatMessage = { role: 'user', content: finalInput };
     const currentSession = state.sessions.find(s => s.id === sessionId);
     const newMessages = [...(currentSession?.messages || []), userMessage];
 
     state.setActiveSession(sessionId);
     state.addMessageToActiveSession(userMessage);
+    
+    // Clear staged context files immediately after staging
+    if (stagedContextFiles.length > 0) {
+      clearContextFiles();
+    }
+    
     state.setIsGenerating(true);
 
     if (isFirstMessage) {
