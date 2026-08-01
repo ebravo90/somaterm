@@ -934,6 +934,10 @@ export function AgentWidget() {
               )}
               <div className="relative flex items-center bg-[#1e1e1e] border border-soma-border rounded-full shadow-inner focus-within:border-soma-accent transition-colors">
                 <button 
+                  onClick={() => {
+                    store.setContextPickerMode(true);
+                    store.setActiveWidget({ type: 'explorer' });
+                  }}
                   className="absolute left-1.5 w-7 h-7 flex items-center justify-center rounded-full text-soma-text-muted hover:bg-soma-border/50 hover:text-soma-text transition-colors cursor-pointer z-10"
                   title="Add Context Files"
                 >

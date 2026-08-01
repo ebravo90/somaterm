@@ -169,6 +169,8 @@ interface AppState {
   addContextFile: (path: string) => void;
   removeContextFile: (path: string) => void;
   clearContextFiles: () => void;
+  isContextPickerMode: boolean;
+  setContextPickerMode: (active: boolean) => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -202,6 +204,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     stagedContextFiles: state.stagedContextFiles.filter(p => p !== path)
   })),
   clearContextFiles: () => set({ stagedContextFiles: [] }),
+
+  isContextPickerMode: false,
+  setContextPickerMode: (active: boolean) => set({ isContextPickerMode: active }),
   
   activeWidget: null,
   setActiveWidget: (widget) => set((state) => {

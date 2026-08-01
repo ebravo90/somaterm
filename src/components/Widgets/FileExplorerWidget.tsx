@@ -98,7 +98,7 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNo
 }
 
 export function FileExplorerWidget() {
-  const { closeWidget, addContextFile, setActiveWidget, createSession, setActiveSession, selectedAgentId, activeSessionId } = useAppStore();
+  const { closeWidget, addContextFile, setActiveWidget, createSession, setActiveSession, selectedAgentId, activeSessionId, isContextPickerMode, setContextPickerMode } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const [showSubMenu, setShowSubMenu] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
@@ -148,6 +148,12 @@ export function FileExplorerWidget() {
   useEffect(() => {
     loadTree();
   }, [rootPath]);
+
+  useEffect(() => {
+    return () => {
+      setContextPickerMode(false);
+    };
+  }, [setContextPickerMode]);
 
   useEffect(() => {
     if (!searchQuery.trim() || !rootPath) {
@@ -221,6 +227,11 @@ export function FileExplorerWidget() {
 
   const handleSelectNode = (e: React.MouseEvent, path: string) => {
     e.stopPropagation();
+    
+    if (isContextPickerMode) {
+      addContextFile(path);
+    }
+    
     if (e.metaKey || e.ctrlKey) {
       setSelectedPaths(prev => 
         prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
