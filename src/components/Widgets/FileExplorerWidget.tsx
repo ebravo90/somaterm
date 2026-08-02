@@ -231,17 +231,13 @@ export function FileExplorerWidget() {
     const currentState = useAppStore.getState();
     
     if (currentState.isContextPickerMode) {
-      if (is_dir === false) {
+      if (!is_dir) {
         // Toggle in the Chat Context
         if (currentState.stagedContextFiles.includes(path)) {
           currentState.removeContextFile(path);
         } else {
           currentState.addContextFile(path);
         }
-        // ALSO toggle the visual selection so the user gets UI feedback
-        setSelectedPaths(prev => 
-          prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
-        );
       }
       return; // Exit early so it doesn't trigger default OS-level open behaviors
     }
@@ -291,6 +287,8 @@ export function FileExplorerWidget() {
       setActiveWidget({ type: 'agent' });
     }
   };
+
+  const effectiveSelectedPaths = isContextPickerMode ? stagedContextFiles : selectedPaths;
 
   return (
     <div className="@container w-full h-full flex flex-col bg-soma-panel relative">
@@ -382,7 +380,7 @@ export function FileExplorerWidget() {
                 onUpdateNode={handleUpdateNode} 
                 onContextMenuNode={handleContextMenuNode} 
                 onSelectNode={handleSelectNode} 
-                selectedPaths={selectedPaths} 
+                selectedPaths={effectiveSelectedPaths} 
                 showRelativePath={true}
               />
             ))}
@@ -391,7 +389,7 @@ export function FileExplorerWidget() {
 
         {!searchQuery.trim() && !loading && !error && tree && (
           <div className="pb-8">
-            <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} onContextMenuNode={handleContextMenuNode} onSelectNode={handleSelectNode} selectedPaths={selectedPaths} />
+            <FileTreeItem node={tree} level={0} onUpdateNode={handleUpdateNode} onContextMenuNode={handleContextMenuNode} onSelectNode={handleSelectNode} selectedPaths={effectiveSelectedPaths} />
           </div>
         )}
       </div>
