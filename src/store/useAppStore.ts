@@ -91,6 +91,21 @@ export interface Session {
   isGeneratingTitle?: boolean;
 }
 
+export interface KanbanTicket {
+  id: string;
+  title: string;
+  status: 'Open' | 'Ready' | 'In Progress' | 'Testing' | 'UAT' | 'Done';
+  description: string;
+  type: 'Feature' | 'Bug' | 'Chore';
+  priority: 'Low' | 'Medium' | 'High' | 'Critical';
+}
+
+export interface KanbanNavState {
+  section: 'cycles' | 'backlog' | 'all';
+  selectedTicket: string | null;
+  viewMode: 'preview' | 'full' | null;
+}
+
 interface AppState {
   activeWidget: WidgetType | null;
   setActiveWidget: (widget: WidgetType | null) => void;
@@ -174,6 +189,18 @@ interface AppState {
   
   isKanbanEnabled: boolean;
   toggleKanban: (enabled: boolean) => void;
+  
+  kanbanMockTickets: KanbanTicket[];
+  kanbanCurrentSection: 'cycles' | 'backlog' | 'all';
+  kanbanSelectedTicket: string | null;
+  kanbanTicketViewMode: 'preview' | 'full' | null;
+  kanbanHistory: KanbanNavState[];
+  kanbanHistoryIndex: number;
+  
+  setKanbanSection: (section: 'cycles' | 'backlog' | 'all') => void;
+  selectKanbanTicket: (ticketId: string | null, viewMode: 'preview' | 'full' | null) => void;
+  navigateKanbanBack: () => void;
+  navigateKanbanForward: () => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -213,6 +240,71 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   isKanbanEnabled: false,
   toggleKanban: (enabled: boolean) => set({ isKanbanEnabled: enabled }),
+  
+  kanbanMockTickets: [
+    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Feature', priority: 'High' },
+    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Feature', priority: 'Medium' },
+    { id: 'SOMA-3', title: 'Fix CSS Bug in Agent', status: 'Open', description: 'The chat bubbles are slightly misaligned on mobile view.', type: 'Bug', priority: 'Low' },
+    { id: 'SOMA-4', title: 'Deploy Initial MVP', status: 'Done', description: 'Ship the first version of the internal board.', type: 'Chore', priority: 'Critical' },
+  ],
+  kanbanCurrentSection: 'cycles',
+  kanbanSelectedTicket: null,
+  kanbanTicketViewMode: null,
+  kanbanHistory: [{ section: 'cycles', selectedTicket: null, viewMode: null }],
+  kanbanHistoryIndex: 0,
+  
+  setKanbanSection: (section) => set((state) => {
+    const newState: KanbanNavState = { section, selectedTicket: null, viewMode: null };
+    const newHistory = state.kanbanHistory.slice(0, state.kanbanHistoryIndex + 1);
+    newHistory.push(newState);
+    return {
+      kanbanCurrentSection: section,
+      kanbanSelectedTicket: null,
+      kanbanTicketViewMode: null,
+      kanbanHistory: newHistory,
+      kanbanHistoryIndex: newHistory.length - 1
+    };
+  }),
+  
+  selectKanbanTicket: (ticketId, viewMode) => set((state) => {
+    const newState: KanbanNavState = { section: state.kanbanCurrentSection, selectedTicket: ticketId, viewMode };
+    const newHistory = state.kanbanHistory.slice(0, state.kanbanHistoryIndex + 1);
+    newHistory.push(newState);
+    return {
+      kanbanSelectedTicket: ticketId,
+      kanbanTicketViewMode: viewMode,
+      kanbanHistory: newHistory,
+      kanbanHistoryIndex: newHistory.length - 1
+    };
+  }),
+  
+  navigateKanbanBack: () => set((state) => {
+    if (state.kanbanHistoryIndex > 0) {
+      const newIndex = state.kanbanHistoryIndex - 1;
+      const navState = state.kanbanHistory[newIndex];
+      return {
+        kanbanHistoryIndex: newIndex,
+        kanbanCurrentSection: navState.section,
+        kanbanSelectedTicket: navState.selectedTicket,
+        kanbanTicketViewMode: navState.viewMode
+      };
+    }
+    return state;
+  }),
+  
+  navigateKanbanForward: () => set((state) => {
+    if (state.kanbanHistoryIndex < state.kanbanHistory.length - 1) {
+      const newIndex = state.kanbanHistoryIndex + 1;
+      const navState = state.kanbanHistory[newIndex];
+      return {
+        kanbanHistoryIndex: newIndex,
+        kanbanCurrentSection: navState.section,
+        kanbanSelectedTicket: navState.selectedTicket,
+        kanbanTicketViewMode: navState.viewMode
+      };
+    }
+    return state;
+  }),
   
   activeWidget: null,
   setActiveWidget: (widget) => set((state) => {
