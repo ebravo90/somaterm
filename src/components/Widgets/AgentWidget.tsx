@@ -938,7 +938,7 @@ export function AgentWidget() {
                   onClick={() => {
                     console.log("Context picker activated, switching to File Explorer");
                     store.setContextPickerMode(true);
-                    store.setActiveWidget({ type: 'explorer' });
+                    store.setActiveWidget({ type: 'file_explorer' });
                   }}
                   className="absolute left-1.5 w-7 h-7 flex items-center justify-center rounded-full text-soma-text-muted hover:bg-soma-border/50 hover:text-soma-text transition-colors cursor-pointer z-10"
                   title="Add Context Files"
