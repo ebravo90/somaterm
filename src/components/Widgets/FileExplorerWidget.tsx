@@ -227,16 +227,23 @@ export function FileExplorerWidget() {
 
   const handleSelectNode = (e: React.MouseEvent, path: string, is_dir?: boolean) => {
     e.stopPropagation();
+    // Fetch the freshest state to avoid stale closures
+    const currentState = useAppStore.getState();
     
-    if (isContextPickerMode) {
+    if (currentState.isContextPickerMode) {
       if (is_dir === false) {
-        if (stagedContextFiles.includes(path)) {
-          removeContextFile(path);
+        // Toggle in the Chat Context
+        if (currentState.stagedContextFiles.includes(path)) {
+          currentState.removeContextFile(path);
         } else {
-          addContextFile(path);
+          currentState.addContextFile(path);
         }
+        // ALSO toggle the visual selection so the user gets UI feedback
+        setSelectedPaths(prev => 
+          prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
+        );
       }
-      return;
+      return; // Exit early so it doesn't trigger default OS-level open behaviors
     }
     
     if (e.metaKey || e.ctrlKey) {
