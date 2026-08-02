@@ -934,7 +934,9 @@ export function AgentWidget() {
               )}
               <div className="relative flex items-center bg-[#1e1e1e] border border-soma-border rounded-full shadow-inner focus-within:border-soma-accent transition-colors">
                 <button 
+                  type="button"
                   onClick={() => {
+                    console.log("Context picker activated, switching to File Explorer");
                     store.setContextPickerMode(true);
                     store.setActiveWidget({ type: 'explorer' });
                   }}
