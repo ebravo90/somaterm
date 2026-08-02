@@ -11,7 +11,7 @@ interface FileNode {
   isExpanded?: boolean;
 }
 
-function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNode, selectedPaths = [], showRelativePath = false }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void, onContextMenuNode?: (e: React.MouseEvent, path: string) => void, onSelectNode?: (e: React.MouseEvent, path: string) => void, selectedPaths?: string[], showRelativePath?: boolean }) {
+function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNode, selectedPaths = [], showRelativePath = false }: { node: FileNode; level: number; onUpdateNode: (path: string, updates: Partial<FileNode>) => void, onContextMenuNode?: (e: React.MouseEvent, path: string) => void, onSelectNode?: (e: React.MouseEvent, path: string, is_dir?: boolean) => void, selectedPaths?: string[], showRelativePath?: boolean }) {
   const [loading, setLoading] = useState(false);
   const isExpanded = level === 0 || !!node.isExpanded;
 
@@ -57,7 +57,7 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNo
         className={`flex items-center py-1 px-2 hover:bg-soma-border/30 cursor-pointer transition-colors group ${selectedPaths.includes(node.path) ? 'bg-soma-border/50' : ''}`}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
         onClick={(e) => {
-          if (onSelectNode) onSelectNode(e, node.path);
+          if (onSelectNode) onSelectNode(e, node.path, node.is_dir);
           toggle(e);
         }}
         onContextMenu={handleContextMenu}
@@ -98,7 +98,7 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNo
 }
 
 export function FileExplorerWidget() {
-  const { closeWidget, addContextFile, setActiveWidget, createSession, setActiveSession, selectedAgentId, activeSessionId, isContextPickerMode, setContextPickerMode } = useAppStore();
+  const { closeWidget, addContextFile, removeContextFile, stagedContextFiles, setActiveWidget, createSession, setActiveSession, selectedAgentId, activeSessionId, isContextPickerMode, setContextPickerMode } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const [showSubMenu, setShowSubMenu] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
@@ -225,11 +225,18 @@ export function FileExplorerWidget() {
     });
   };
 
-  const handleSelectNode = (e: React.MouseEvent, path: string) => {
+  const handleSelectNode = (e: React.MouseEvent, path: string, is_dir?: boolean) => {
     e.stopPropagation();
     
     if (isContextPickerMode) {
-      addContextFile(path);
+      if (is_dir === false) {
+        if (stagedContextFiles.includes(path)) {
+          removeContextFile(path);
+        } else {
+          addContextFile(path);
+        }
+      }
+      return;
     }
     
     if (e.metaKey || e.ctrlKey) {
