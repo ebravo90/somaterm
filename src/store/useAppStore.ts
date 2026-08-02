@@ -212,6 +212,7 @@ interface AppState {
   setKanbanActiveCycle: (cycleId: string) => void;
   navigateKanbanBack: () => void;
   navigateKanbanForward: () => void;
+  updateKanbanTicket: (ticketId: string, updates: Partial<KanbanTicket>) => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -297,6 +298,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       kanbanHistoryIndex: newHistory.length - 1
     };
   }),
+
+  updateKanbanTicket: (ticketId, updates) => set((state) => ({
+    kanbanMockTickets: state.kanbanMockTickets.map(t => 
+      t.id === ticketId ? { ...t, ...updates } : t
+    )
+  })),
   
   navigateKanbanBack: () => set((state) => {
     if (state.kanbanHistoryIndex > 0) {
