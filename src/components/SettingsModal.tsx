@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 
-type SettingsTab = 'Environment' | 'QA & Debug' | 'Web Manager' | 'Agents' | 'IDE';
+type SettingsTab = 'Environment' | 'QA & Debug' | 'Web Manager' | 'Agents' | 'IDE' | 'Experimental';
 
 export const SettingsModal: React.FC = () => {
-  const { isSettingsOpen, toggleSettings, isDebugModeEnabled, setDebugMode } = useAppStore();
+  const { isSettingsOpen, toggleSettings, isDebugModeEnabled, setDebugMode, isKanbanEnabled, toggleKanban } = useAppStore();
   const settings = useSettingsStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>('Environment');
 
@@ -21,7 +21,7 @@ export const SettingsModal: React.FC = () => {
 
   if (!isSettingsOpen) return null;
 
-  const tabs: SettingsTab[] = ['Environment', 'QA & Debug', 'Web Manager', 'Agents', 'IDE'];
+  const tabs: SettingsTab[] = ['Environment', 'QA & Debug', 'Web Manager', 'Agents', 'IDE', 'Experimental'];
 
   return (
     <div 
@@ -214,6 +214,27 @@ export const SettingsModal: React.FC = () => {
                         <Toggle 
                           checked={settings.widgetsEnabled.fileExplorer} 
                           onChange={(val) => settings.setWidgetsEnabled({ ...settings.widgetsEnabled, fileExplorer: val })} 
+                        />
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {activeTab === 'Experimental' && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <section>
+                    <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-6">Experimental Features</h3>
+                    
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between border-b border-zinc-800/50 pb-6">
+                        <div className="pr-8">
+                          <div className="text-zinc-200 font-medium">Enable Kanban Board</div>
+                          <div className="text-zinc-400 text-sm mt-1">Activate the native task management system and AI long-term memory board.</div>
+                        </div>
+                        <Toggle 
+                          checked={isKanbanEnabled} 
+                          onChange={(val) => toggleKanban(val)} 
                         />
                       </div>
                     </div>

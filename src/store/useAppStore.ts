@@ -171,6 +171,9 @@ interface AppState {
   clearContextFiles: () => void;
   isContextPickerMode: boolean;
   setContextPickerMode: (active: boolean) => void;
+  
+  isKanbanEnabled: boolean;
+  toggleKanban: (enabled: boolean) => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -207,6 +210,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   isContextPickerMode: false,
   setContextPickerMode: (active: boolean) => set({ isContextPickerMode: active }),
+  
+  isKanbanEnabled: false,
+  toggleKanban: (enabled: boolean) => set({ isKanbanEnabled: enabled }),
   
   activeWidget: null,
   setActiveWidget: (widget) => set((state) => {
