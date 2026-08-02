@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 
 const KANBAN_COLUMNS = ['Open', 'Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
@@ -19,6 +19,8 @@ export const KanbanWidget: React.FC = () => {
     kanbanHistory,
     kanbanHistoryIndex
   } = useAppStore();
+
+  const [cyclesLayout, setCyclesLayout] = useState<'grid' | 'list'>('grid');
 
   const selectedTicketObj = kanbanSelectedTicket ? kanbanMockTickets.find(t => t.id === kanbanSelectedTicket) : null;
   const activeCycleObj = kanbanActiveCycleId ? kanbanMockCycles.find(c => c.id === kanbanActiveCycleId) : null;
@@ -80,8 +82,27 @@ export const KanbanWidget: React.FC = () => {
   const renderCyclesList = () => {
     return (
       <div className="p-8 max-w-4xl mx-auto w-full h-full overflow-y-auto">
-        <h2 className="text-2xl font-semibold text-zinc-100 mb-8">Cycles</h2>
-        <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-semibold text-zinc-100">Cycles</h2>
+          <div className="flex items-center gap-1 bg-zinc-900/50 border border-zinc-800/80 p-1 rounded-md">
+            <button 
+              onClick={() => setCyclesLayout('grid')}
+              className={`p-1.5 rounded transition-colors ${cyclesLayout === 'grid' ? 'bg-zinc-800 text-zinc-200 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Grid View"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            </button>
+            <button 
+              onClick={() => setCyclesLayout('list')}
+              className={`p-1.5 rounded transition-colors ${cyclesLayout === 'list' ? 'bg-zinc-800 text-zinc-200 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="List View"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+        
+        <div className={cyclesLayout === 'grid' ? "flex flex-col gap-4" : "flex flex-col gap-2"}>
           {kanbanMockCycles.map(cycle => {
             const cycleTickets = kanbanMockTickets.filter(t => t.cycleId === cycle.id);
             const total = cycleTickets.length;
@@ -89,6 +110,41 @@ export const KanbanWidget: React.FC = () => {
             const progress = total === 0 ? 0 : Math.round((done / total) * 100);
             const isActive = kanbanActiveCycleId === cycle.id;
             
+            if (cyclesLayout === 'grid') {
+              return (
+                <div 
+                  key={cycle.id}
+                  onClick={() => {
+                    setKanbanActiveCycle(cycle.id);
+                    setKanbanSection('board');
+                  }}
+                  className={`flex flex-col p-5 rounded-lg border cursor-pointer transition-all ${isActive ? 'bg-blue-500/5 border-blue-500/30' : 'bg-zinc-900/50 border-zinc-800/80 hover:border-zinc-700'}`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium text-lg text-zinc-200">{cycle.name}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cycle.status === 'Active' ? 'bg-green-500/10 text-green-400' : cycle.status === 'Completed' ? 'bg-zinc-800 text-zinc-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                        {cycle.status}
+                      </span>
+                    </div>
+                    {cycle.targetDate && (
+                      <span className="text-sm text-zinc-500 flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        {cycle.targetDate}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+                    </div>
+                    <span className="text-sm text-zinc-400 min-w-[3rem] text-right">{progress}%</span>
+                  </div>
+                </div>
+              );
+            }
+
+            // List View
             return (
               <div 
                 key={cycle.id}
@@ -96,27 +152,29 @@ export const KanbanWidget: React.FC = () => {
                   setKanbanActiveCycle(cycle.id);
                   setKanbanSection('board');
                 }}
-                className={`flex flex-col p-5 rounded-lg border cursor-pointer transition-all ${isActive ? 'bg-blue-500/5 border-blue-500/30' : 'bg-zinc-900/50 border-zinc-800/80 hover:border-zinc-700'}`}
+                className={`flex items-center p-3 rounded-lg border cursor-pointer transition-all ${isActive ? 'bg-blue-500/5 border-blue-500/30' : 'bg-zinc-900/50 border-zinc-800/50 hover:border-zinc-700'}`}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-lg text-zinc-200">{cycle.name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cycle.status === 'Active' ? 'bg-green-500/10 text-green-400' : cycle.status === 'Completed' ? 'bg-zinc-800 text-zinc-400' : 'bg-orange-500/10 text-orange-400'}`}>
-                      {cycle.status}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-3 w-1/3">
+                  <span className="font-medium text-sm text-zinc-200">{cycle.name}</span>
+                </div>
+                <div className="flex items-center gap-3 w-1/4">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${cycle.status === 'Active' ? 'bg-green-500/10 text-green-400' : cycle.status === 'Completed' ? 'bg-zinc-800 text-zinc-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                    {cycle.status}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 w-1/4">
                   {cycle.targetDate && (
-                    <span className="text-sm text-zinc-500 flex items-center gap-1.5">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    <span className="text-xs text-zinc-500 flex items-center gap-1.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                       {cycle.targetDate}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                     <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${progress}%` }} />
                   </div>
-                  <span className="text-sm text-zinc-400 min-w-[3rem] text-right">{progress}%</span>
+                  <span className="text-xs text-zinc-400 min-w-[2.5rem] text-right">{progress}%</span>
                 </div>
               </div>
             );
@@ -125,6 +183,41 @@ export const KanbanWidget: React.FC = () => {
       </div>
     );
   };
+
+  const renderAllTickets = () => (
+    <div className="p-8 max-w-5xl mx-auto w-full h-full overflow-y-auto">
+      <h2 className="text-2xl font-semibold text-zinc-100 mb-8">All Tickets</h2>
+      <div className="flex flex-col gap-2">
+        {kanbanMockTickets.map(ticket => (
+          <div 
+            key={ticket.id}
+            onClick={() => selectKanbanTicket(ticket.id, 'preview')}
+            className={`flex items-center p-3 bg-zinc-900/50 border rounded-lg cursor-pointer transition-all ${kanbanSelectedTicket === ticket.id ? 'border-blue-500/50 bg-blue-500/5' : 'border-zinc-800/50 hover:border-zinc-700'}`}
+          >
+            <div className="w-24 shrink-0">
+              <span className="text-xs font-mono text-zinc-500">{ticket.id}</span>
+            </div>
+            <div className="flex-1 min-w-0 pr-4">
+              <span className="text-sm font-medium text-zinc-200 truncate block">{ticket.title}</span>
+            </div>
+            <div className="w-32 shrink-0">
+              <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-[10px] font-medium">{ticket.status}</span>
+            </div>
+            <div className="w-24 shrink-0">
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                {ticket.priority}
+              </span>
+            </div>
+            <div className="w-24 shrink-0 text-right">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-zinc-700/50 text-zinc-400 font-medium">
+                {ticket.type}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="@container w-full h-full flex bg-[#1e1e1e] relative overflow-hidden">
@@ -205,26 +298,6 @@ export const KanbanWidget: React.FC = () => {
         {/* Header */}
         <div className="h-14 flex items-center justify-between px-6 border-b border-zinc-800 shrink-0 bg-zinc-950/50 z-10">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 mr-2">
-              <button 
-                onClick={navigateKanbanBack}
-                disabled={!canGoBack}
-                className={`p-1.5 rounded transition-colors ${canGoBack ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 cursor-not-allowed'}`}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </button>
-              <button 
-                onClick={navigateKanbanForward}
-                disabled={!canGoForward}
-                className={`p-1.5 rounded transition-colors ${canGoForward ? 'text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100' : 'text-zinc-700 cursor-not-allowed'}`}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
-            </div>
             <span className="text-zinc-200 font-medium text-sm flex items-center gap-2">
               {kanbanCurrentSection === 'board' && activeCycleObj ? (
                 <>
@@ -304,7 +377,8 @@ export const KanbanWidget: React.FC = () => {
             <div className={`w-full transition-all duration-300 overflow-hidden ${kanbanTicketViewMode === 'preview' ? 'h-[55%] min-h-[55%]' : 'h-full'}`}>
               <div className="h-full w-full overflow-x-auto overflow-y-hidden">
                 {kanbanCurrentSection === 'board' ? renderBoard() : 
-                 kanbanCurrentSection === 'cycles' ? renderCyclesList() : (
+                 kanbanCurrentSection === 'cycles' ? renderCyclesList() : 
+                 kanbanCurrentSection === 'all' ? renderAllTickets() : (
                   <div className="p-8 flex items-center justify-center h-full text-zinc-500 italic">
                     {kanbanCurrentSection} view placeholder
                   </div>
@@ -354,6 +428,40 @@ export const KanbanWidget: React.FC = () => {
             )}
           </div>
         )}
+
+        {/* Bottom Navigation Bar */}
+        <div className="h-10 flex items-center px-4 border-t border-zinc-800 shrink-0 bg-zinc-950/80 z-10 gap-2">
+          <button 
+            onClick={navigateKanbanBack}
+            disabled={!canGoBack}
+            className={`p-1 rounded transition-colors ${canGoBack ? 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Go Back"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <button 
+            onClick={navigateKanbanForward}
+            disabled={!canGoForward}
+            className={`p-1 rounded transition-colors ${canGoForward ? 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Go Forward"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
+          <button 
+            className="p-1 rounded text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors ml-1"
+            title="Refresh"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
