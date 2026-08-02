@@ -98,10 +98,18 @@ export interface KanbanTicket {
   description: string;
   type: 'Feature' | 'Bug' | 'Chore';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
+  cycleId?: string;
+}
+
+export interface KanbanCycle {
+  id: string;
+  name: string;
+  status: 'Active' | 'On Hold' | 'Completed';
+  targetDate?: string;
 }
 
 export interface KanbanNavState {
-  section: 'cycles' | 'backlog' | 'all';
+  section: 'board' | 'cycles' | 'backlog' | 'all';
   selectedTicket: string | null;
   viewMode: 'preview' | 'full' | null;
 }
@@ -190,15 +198,18 @@ interface AppState {
   isKanbanEnabled: boolean;
   toggleKanban: (enabled: boolean) => void;
   
+  kanbanMockCycles: KanbanCycle[];
+  kanbanActiveCycleId: string | null;
   kanbanMockTickets: KanbanTicket[];
-  kanbanCurrentSection: 'cycles' | 'backlog' | 'all';
+  kanbanCurrentSection: 'board' | 'cycles' | 'backlog' | 'all';
   kanbanSelectedTicket: string | null;
   kanbanTicketViewMode: 'preview' | 'full' | null;
   kanbanHistory: KanbanNavState[];
   kanbanHistoryIndex: number;
   
-  setKanbanSection: (section: 'cycles' | 'backlog' | 'all') => void;
+  setKanbanSection: (section: 'board' | 'cycles' | 'backlog' | 'all') => void;
   selectKanbanTicket: (ticketId: string | null, viewMode: 'preview' | 'full' | null) => void;
+  setKanbanActiveCycle: (cycleId: string) => void;
   navigateKanbanBack: () => void;
   navigateKanbanForward: () => void;
 }
@@ -241,16 +252,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   isKanbanEnabled: false,
   toggleKanban: (enabled: boolean) => set({ isKanbanEnabled: enabled }),
   
-  kanbanMockTickets: [
-    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Feature', priority: 'High' },
-    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Feature', priority: 'Medium' },
-    { id: 'SOMA-3', title: 'Fix CSS Bug in Agent', status: 'Open', description: 'The chat bubbles are slightly misaligned on mobile view.', type: 'Bug', priority: 'Low' },
-    { id: 'SOMA-4', title: 'Deploy Initial MVP', status: 'Done', description: 'Ship the first version of the internal board.', type: 'Chore', priority: 'Critical' },
+  kanbanMockCycles: [
+    { id: 'CYCLE-1', name: 'Somaterm MVP', status: 'Active', targetDate: '2026-08-15' },
+    { id: 'CYCLE-2', name: 'Phase 2: IDE Features', status: 'On Hold', targetDate: '2026-09-01' },
+    { id: 'CYCLE-3', name: 'Foundation Polish', status: 'Completed', targetDate: '2026-07-30' },
   ],
-  kanbanCurrentSection: 'cycles',
+  kanbanActiveCycleId: 'CYCLE-1',
+  
+  kanbanMockTickets: [
+    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Feature', priority: 'High', cycleId: 'CYCLE-1' },
+    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Feature', priority: 'Medium', cycleId: 'CYCLE-1' },
+    { id: 'SOMA-3', title: 'Fix CSS Bug in Agent', status: 'Open', description: 'The chat bubbles are slightly misaligned on mobile view.', type: 'Bug', priority: 'Low', cycleId: 'CYCLE-1' },
+    { id: 'SOMA-4', title: 'Deploy Initial MVP', status: 'Done', description: 'Ship the first version of the internal board.', type: 'Chore', priority: 'Critical', cycleId: 'CYCLE-3' },
+  ],
+  kanbanCurrentSection: 'board',
   kanbanSelectedTicket: null,
   kanbanTicketViewMode: null,
-  kanbanHistory: [{ section: 'cycles', selectedTicket: null, viewMode: null }],
+  kanbanHistory: [{ section: 'board', selectedTicket: null, viewMode: null }],
   kanbanHistoryIndex: 0,
   
   setKanbanSection: (section) => set((state) => {
@@ -265,6 +283,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       kanbanHistoryIndex: newHistory.length - 1
     };
   }),
+  
+  setKanbanActiveCycle: (cycleId) => set({ kanbanActiveCycleId: cycleId }),
   
   selectKanbanTicket: (ticketId, viewMode) => set((state) => {
     const newState: KanbanNavState = { section: state.kanbanCurrentSection, selectedTicket: ticketId, viewMode };
