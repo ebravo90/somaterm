@@ -423,15 +423,17 @@ export const KanbanWidget: React.FC = () => {
     );
   };
 
-  const renderAllTickets = () => {
+  const renderAllTickets = (isBacklog: boolean = false) => {
+    const sourceTickets = isBacklog ? filteredTickets.filter(t => t.status === 'Open') : filteredTickets;
+    
     const startIdx = (allTicketsPage - 1) * allTicketsItemsPerPage;
-    const paginatedTickets = filteredTickets.slice(startIdx, startIdx + allTicketsItemsPerPage);
-    const totalPages = Math.max(1, Math.ceil(filteredTickets.length / allTicketsItemsPerPage));
+    const paginatedTickets = sourceTickets.slice(startIdx, startIdx + allTicketsItemsPerPage);
+    const totalPages = Math.max(1, Math.ceil(sourceTickets.length / allTicketsItemsPerPage));
 
     return (
       <div className="p-8 max-w-5xl mx-auto w-full h-full overflow-y-auto flex flex-col">
         <div className="flex items-center justify-between mb-8 shrink-0">
-          <h2 className="text-2xl font-semibold text-zinc-100">All Tickets</h2>
+          <h2 className="text-2xl font-semibold text-zinc-100">{isBacklog ? 'Backlog' : 'All Tickets'}</h2>
           <div className="flex items-center gap-3">
             <select
               value={allTicketsItemsPerPage}
@@ -862,7 +864,8 @@ export const KanbanWidget: React.FC = () => {
               <div className="h-full w-full overflow-x-auto overflow-y-hidden bg-zinc-950/30">
                 {kanbanCurrentSection === 'board' ? renderBoard() : 
                  kanbanCurrentSection === 'cycles' ? renderCyclesList() : 
-                 kanbanCurrentSection === 'all' ? renderAllTickets() : (
+                 kanbanCurrentSection === 'all' ? renderAllTickets(false) : 
+                 kanbanCurrentSection === 'backlog' ? renderAllTickets(true) : (
                   <div className="p-8 flex items-center justify-center h-full text-zinc-500 italic">
                     {kanbanCurrentSection} view placeholder
                   </div>
