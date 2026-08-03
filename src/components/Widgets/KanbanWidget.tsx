@@ -6,9 +6,6 @@ const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'In Progress'
 const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
 const TYPE_OPTIONS: KanbanTicket['type'][] = ['Feature', 'Bug', 'Chore', 'Spike'];
 
-// Robust DnD fallback state for WebKit
-let draggedTicketId: string | null = null;
-
 export const KanbanWidget: React.FC = () => {
   const { 
     kanbanMockCycles,
@@ -168,14 +165,12 @@ export const KanbanWidget: React.FC = () => {
               }}
               onDrop={(e) => {
                 e.preventDefault();
-                setDragOverColumn(null);
-                setIsDraggingTicket(false);
-                const id = draggedTicketId || e.dataTransfer.getData("ticketId") || e.dataTransfer.getData("ticketid") || e.dataTransfer.getData("text/plain");
-                console.log("Dropping ticket ID:", id, "into status:", colName);
+                const id = e.dataTransfer.getData("text/plain");
                 if (id) {
                   updateKanbanTicket(id, { status: colName });
                 }
-                draggedTicketId = null;
+                setDragOverColumn(null);
+                setIsDraggingTicket(false);
               }}
             >
               <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0 pointer-events-none">
@@ -194,14 +189,11 @@ export const KanbanWidget: React.FC = () => {
                       draggable
                       onDragStart={(e) => {
                         setIsDraggingTicket(true);
-                        draggedTicketId = ticket.id;
-                        e.dataTransfer.setData("ticketId", ticket.id);
-                        e.dataTransfer.setData("text/plain", ticket.id);
                         e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", ticket.id);
                       }}
                       onDragEnd={() => {
                         setIsDraggingTicket(false);
-                        draggedTicketId = null;
                       }}
                       onClick={() => selectKanbanTicket(ticket.id, 'preview')}
                       className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 pointer-events-auto ${kanbanSelectedTicket === ticket.id ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'}`}
