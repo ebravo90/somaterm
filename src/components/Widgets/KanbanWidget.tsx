@@ -140,10 +140,14 @@ export const KanbanWidget: React.FC = () => {
             <div 
               key={colName} 
               className="w-72 flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-lg overflow-hidden shrink-0"
-              onDragOver={(e) => e.preventDefault()}
+              onDragEnter={(e) => e.preventDefault()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }}
               onDrop={(e) => {
                 e.preventDefault();
-                const id = e.dataTransfer.getData("ticketId");
+                const id = e.dataTransfer.getData("ticketId") || e.dataTransfer.getData("ticketid") || e.dataTransfer.getData("text/plain");
                 if (id) {
                   updateKanbanTicket(id, { status: colName });
                 }
@@ -165,6 +169,8 @@ export const KanbanWidget: React.FC = () => {
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData("ticketId", ticket.id);
+                        e.dataTransfer.setData("text/plain", ticket.id);
+                        e.dataTransfer.effectAllowed = "move";
                       }}
                       onClick={() => selectKanbanTicket(ticket.id, 'preview')}
                       className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${kanbanSelectedTicket === ticket.id ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'}`}
