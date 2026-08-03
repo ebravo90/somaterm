@@ -116,7 +116,7 @@ export interface KanbanTicket {
   description: string;
   acc?: string;
   dod?: string;
-  type: 'Feature' | 'Bug' | 'Chore' | 'Spike';
+  type: 'Story' | 'Task' | 'Bug' | 'Spike' | 'Cycle';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   cycleId?: string;
   history: TicketHistoryEvent[];
@@ -291,10 +291,10 @@ export const useAppStore = create<AppState>()(
   kanbanActiveCycleId: 'CYCLE-1',
   
   kanbanMockTickets: [
-    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Feature', priority: 'High', cycleId: 'CYCLE-1' },
-    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Feature', priority: 'Medium', cycleId: 'CYCLE-1' },
-    { id: 'SOMA-3', title: 'Fix CSS Bug in Agent', status: 'Open', description: 'The chat bubbles are slightly misaligned on mobile view.', type: 'Bug', priority: 'Low', cycleId: 'CYCLE-1' },
-    { id: 'SOMA-4', title: 'Deploy Initial MVP', status: 'Done', description: 'Ship the first version of the internal board.', type: 'Chore', priority: 'Critical', cycleId: 'CYCLE-3' },
+    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Story', priority: 'High', cycleId: 'CYCLE-1', history: [] },
+    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Task', priority: 'Medium', cycleId: 'CYCLE-1', history: [] },
+    { id: 'SOMA-3', title: 'Fix Header Alignment', status: 'Blocked', description: 'The header buttons are slightly off-center on Windows.', type: 'Bug', priority: 'Low', history: [] },
+    { id: 'SOMA-4', title: 'Deploy Initial MVP', status: 'Done', description: 'Ship the first version of the internal board.', type: 'Cycle', priority: 'Critical', cycleId: 'CYCLE-3', history: [] },
   ],
   setUserAvatar: (avatarData) => set({ userAvatar: avatarData }),
   
