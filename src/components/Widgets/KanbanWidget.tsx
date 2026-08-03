@@ -140,10 +140,13 @@ export const KanbanWidget: React.FC = () => {
 
   const [historyLimit, setHistoryLimit] = useState(5);
 
-  // When selected ticket changes, reset history limit
+  // When selected ticket changes, reset history limit and comment state
   useEffect(() => {
     setHistoryLimit(5);
+    setNewComment('');
   }, [kanbanSelectedTicket]);
+
+  const [newComment, setNewComment] = useState('');
 
   // DnD State
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -972,6 +975,55 @@ export const KanbanWidget: React.FC = () => {
                     )}
                   </div>
                 )}
+                
+                {/* Comments Section */}
+                <div className="mt-12 border-t border-zinc-800/50 pt-6">
+                  <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                    Comments
+                  </h3>
+                  
+                  {selectedTicketObj.comments && selectedTicketObj.comments.length > 0 && (
+                    <div className="flex flex-col gap-4 mb-6">
+                      {selectedTicketObj.comments.map((comment) => (
+                        <div key={comment.id} className={`flex flex-col ${comment.role === 'human' ? 'items-end' : 'items-start'}`}>
+                          <div className={`max-w-[80%] rounded-lg px-4 py-2 ${comment.role === 'human' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-100' : 'bg-zinc-800 border border-zinc-700 text-zinc-200'}`}>
+                            <div className="text-xs opacity-60 mb-1 flex justify-between gap-4">
+                              <span>{comment.author}</span>
+                              <span>{new Date(comment.timestamp).toLocaleString()}</span>
+                            </div>
+                            <div className="text-sm whitespace-pre-wrap">{comment.content}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {!isEditing && (
+                    <div className="flex flex-col gap-2">
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Add a comment..."
+                        className="w-full h-24 bg-zinc-900 border border-zinc-700 rounded-md py-2 px-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500 resize-none"
+                      />
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => {
+                            if (newComment.trim()) {
+                              useAppStore.getState().addComment(selectedTicketObj.id, newComment.trim(), 'Human', 'human');
+                              setNewComment('');
+                            }
+                          }}
+                          disabled={!newComment.trim()}
+                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md transition-colors"
+                        >
+                          Send
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

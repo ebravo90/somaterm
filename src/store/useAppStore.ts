@@ -92,6 +92,23 @@ export interface Session {
   isGeneratingTitle?: boolean;
 }
 
+export interface TicketHistoryEvent {
+  id: string;
+  timestamp: number;
+  actor: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+}
+
+export interface TicketComment {
+  id: string;
+  timestamp: number;
+  author: string;
+  role: 'human' | 'agent';
+  content: string;
+}
+
 export interface KanbanTicket {
   id: string;
   title: string;
@@ -102,6 +119,8 @@ export interface KanbanTicket {
   type: 'Feature' | 'Bug' | 'Chore' | 'Spike';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   cycleId?: string;
+  history: TicketHistoryEvent[];
+  comments?: TicketComment[];
 }
 
 export interface KanbanCycle {
@@ -217,6 +236,7 @@ interface AppState {
   navigateKanbanForward: () => void;
   updateKanbanTicket: (ticketId: string, updates: Partial<KanbanTicket>) => void;
   addKanbanTicket: (ticket: Omit<KanbanTicket, 'id'>) => void;
+  addComment: (ticketId: string, content: string, author: string, role: 'human' | 'agent') => void;
   kanbanSearchQuery: string;
   setKanbanSearchQuery: (query: string) => void;
 }
@@ -309,21 +329,74 @@ export const useAppStore = create<AppState>()(
     };
   }),
 
-  updateKanbanTicket: (ticketId, updates) => set((state) => ({
-    kanbanMockTickets: state.kanbanMockTickets.map(t => 
-      t.id === ticketId ? { ...t, ...updates } : t
-    )
-  })),
+  updateKanbanTicket: (ticketId, updates) => set((state) => {
+    const timestamp = Date.now();
+    return {
+      kanbanMockTickets: state.kanbanMockTickets.map(t => {
+        if (t.id !== ticketId) return t;
+        
+        const newHistoryEvents: TicketHistoryEvent[] = [];
+        Object.entries(updates).forEach(([field, newValue]) => {
+          const oldValue = (t as any)[field];
+          if (oldValue !== newValue) {
+            newHistoryEvents.push({
+              id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              timestamp,
+              actor: 'Human',
+              field,
+              oldValue: String(oldValue || ''),
+              newValue: String(newValue || '')
+            });
+          }
+        });
+
+        return { 
+          ...t, 
+          ...updates, 
+          history: [...newHistoryEvents, ...(t.history || [])]
+        };
+      })
+    };
+  }),
 
   addKanbanTicket: (ticket) => set((state) => {
-    // Generate a mock ID based on current length + 1 (SOMA-X)
     const newId = `SOMA-${state.kanbanMockTickets.length + 1}`;
     const newTicket: KanbanTicket = {
       ...ticket,
-      id: newId
+      id: newId,
+      history: [{
+        id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+        actor: 'Human',
+        field: 'Created',
+        oldValue: '',
+        newValue: 'Ticket Created'
+      }],
+      comments: []
+    };
+    return { 
+      kanbanMockTickets: [newTicket, ...state.kanbanMockTickets] 
+    };
+  }),
+  
+  addComment: (ticketId, content, author, role) => set((state) => {
+    const newComment: TicketComment = {
+      id: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+      author,
+      role,
+      content
     };
     return {
-      kanbanMockTickets: [newTicket, ...state.kanbanMockTickets]
+      kanbanMockTickets: state.kanbanMockTickets.map(t => {
+        if (t.id === ticketId) {
+          return {
+            ...t,
+            comments: [...(t.comments || []), newComment]
+          };
+        }
+        return t;
+      })
     };
   }),
   
