@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore, type KanbanTicket } from '../../store/useAppStore';
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragOverlay, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
 const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
@@ -16,7 +16,6 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
   const style = {
     transform: CSS.Translate.toString(transform),
     zIndex: isDragging ? 50 : undefined,
-    opacity: isDragging ? 0.8 : undefined,
   };
 
   return (
@@ -26,7 +25,7 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
       {...listeners}
       {...attributes}
       onClick={() => onSelect(ticket.id, 'preview')}
-      className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${isSelected ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'}`}
+      className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${isSelected ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'} ${isDragging ? 'opacity-30' : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium text-zinc-200 line-clamp-2">{ticket.title}</span>
@@ -133,6 +132,9 @@ export const KanbanWidget: React.FC = () => {
   const [editPriority, setEditPriority] = useState<KanbanTicket['priority']>('Medium');
   const [editType, setEditType] = useState<KanbanTicket['type']>('Feature');
 
+  // DnD State
+  const [activeId, setActiveId] = useState<string | null>(null);
+
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
@@ -206,19 +208,25 @@ export const KanbanWidget: React.FC = () => {
 
 
   // Board Area Content
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over) {
       updateKanbanTicket(active.id as string, { status: over.id as KanbanTicket['status'] });
     }
+    setActiveId(null);
   };
 
   const renderBoard = () => {
     // Filter tickets by active cycle
     const boardTickets = filteredTickets.filter(t => t.cycleId === kanbanActiveCycleId);
-    
+    const activeTicket = activeId ? kanbanMockTickets.find(t => t.id === activeId) : null;
+
     return (
-      <DndContext onDragEnd={handleDragEnd}>
+      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex h-full p-6 gap-4 min-w-max">
           {KANBAN_COLUMNS.map((colName) => {
             const columnTickets = boardTickets.filter(t => t.status === colName);
@@ -233,6 +241,26 @@ export const KanbanWidget: React.FC = () => {
             );
           })}
         </div>
+        <DragOverlay>
+          {activeTicket ? (
+            <div className="p-3 bg-zinc-800/80 border border-blue-500/50 ring-1 ring-blue-500/20 rounded-md shadow-2xl flex flex-col gap-2 rotate-2 opacity-95">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-sm font-medium text-zinc-200 line-clamp-2">{activeTicket.title}</span>
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-xs font-mono text-zinc-500">{activeTicket.id}</span>
+                <div className="flex flex-wrap gap-1">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${activeTicket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : activeTicket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                    {activeTicket.priority}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-zinc-700/50 text-zinc-400 font-medium">
+                    {activeTicket.type}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     );
   };
