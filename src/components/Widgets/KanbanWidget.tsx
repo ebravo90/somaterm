@@ -138,6 +138,13 @@ export const KanbanWidget: React.FC = () => {
   const [editPriority, setEditPriority] = useState<KanbanTicket['priority']>('Medium');
   const [editType, setEditType] = useState<KanbanTicket['type']>('Feature');
 
+  const [historyLimit, setHistoryLimit] = useState(5);
+
+  // When selected ticket changes, reset history limit
+  useEffect(() => {
+    setHistoryLimit(5);
+  }, [kanbanSelectedTicket]);
+
   // DnD State
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -236,15 +243,15 @@ export const KanbanWidget: React.FC = () => {
     setActiveId(null);
   };
 
-  const renderBoard = () => {
-    const sensors = useSensors(
-      useSensor(PointerSensor, {
-        activationConstraint: {
-          distance: 5,
-        },
-      })
-    );
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    })
+  );
 
+  const renderBoard = () => {
     // Filter tickets by active cycle
     const boardTickets = filteredTickets.filter(t => t.cycleId === kanbanActiveCycleId);
     const activeTicket = activeId ? kanbanMockTickets.find(t => t.id === activeId) : null;
@@ -925,6 +932,45 @@ export const KanbanWidget: React.FC = () => {
                   />
                 ) : (
                   <p className="leading-relaxed text-zinc-400 whitespace-pre-wrap">{selectedTicketObj.dod || 'Not specified.'}</p>
+                )}
+
+                {!isEditing && selectedTicketObj.history && selectedTicketObj.history.length > 0 && (
+                  <div className="mt-12 border-t border-zinc-800/50 pt-6">
+                    <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                      History
+                    </h3>
+                    <div className="flex flex-col gap-3 pl-2 border-l border-zinc-800/50 ml-2">
+                      {[...selectedTicketObj.history]
+                        .sort((a, b) => b.timestamp - a.timestamp)
+                        .slice(0, historyLimit)
+                        .map((evt) => (
+                          <div key={evt.id} className="relative pl-4">
+                            <div className="absolute w-2 h-2 rounded-full bg-zinc-700 -left-[5px] top-1.5 border-2 border-zinc-950"></div>
+                            <div className="text-xs text-zinc-500 mb-0.5">
+                              {new Date(evt.timestamp).toLocaleString()} • {evt.actor}
+                            </div>
+                            <div className="text-sm text-zinc-300">
+                              {evt.field === 'Created' ? (
+                                <span>{evt.newValue}</span>
+                              ) : (
+                                <span>
+                                  Changed <span className="font-medium text-zinc-200">{evt.field}</span> from <span className="text-zinc-400 line-through mr-1">{evt.oldValue || 'none'}</span> to <span className="text-blue-400 font-medium">{evt.newValue || 'none'}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                      ))}
+                    </div>
+                    {selectedTicketObj.history.length > historyLimit && (
+                      <button 
+                        onClick={() => setHistoryLimit(l => l + 5)}
+                        className="mt-4 text-xs font-medium text-zinc-400 hover:text-blue-400 transition-colors pl-6"
+                      >
+                        Load More ({selectedTicketObj.history.length - historyLimit} remaining)
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
