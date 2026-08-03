@@ -8,6 +8,23 @@ const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'Blocked', 'I
 const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
 const TYPE_OPTIONS: KanbanTicket['type'][] = ['Story', 'Task', 'Bug', 'Spike', 'Cycle'];
 
+const isValidTransition = (ticket: KanbanTicket, newStatus: KanbanTicket['status']): boolean => {
+  if (newStatus === 'Canceled') return true;
+  if (newStatus === ticket.status) return true; // Same state is valid
+
+  if (newStatus === 'Done') {
+    // Rule 2
+    if (ticket.status === 'Open' || ticket.status === 'Ready') return false;
+
+    // Rule 3
+    if ((ticket.type === 'Story' || ticket.type === 'Bug') && ticket.status !== 'UAT') {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTicket, isSelected: boolean, onSelect: (id: string, view: 'preview') => void }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ticket.id,
@@ -32,7 +49,7 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
       <div className="flex items-center justify-between mt-1">
         <span className="text-xs font-mono text-zinc-500">{ticket.id}</span>
         <div className="flex flex-wrap gap-1">
-          <InlineStatusBadge ticketId={ticket.id} currentStatus={ticket.status} />
+          <InlineStatusBadge ticket={ticket} />
           <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
             {ticket.priority}
           </span>
@@ -45,13 +62,13 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
   );
 };
 
-const InlineStatusBadge = ({ ticketId, currentStatus, isFullView }: { ticketId: string, currentStatus: KanbanTicket['status'], isFullView?: boolean }) => {
+const InlineStatusBadge = ({ ticket, isFullView }: { ticket: KanbanTicket, isFullView?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { updateKanbanTicket } = useAppStore();
 
   const baseStyle = isFullView 
     ? "px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full text-xs font-medium border border-blue-500/20"
-    : currentStatus === 'Blocked'
+    : ticket.status === 'Blocked'
       ? "px-2 py-0.5 rounded text-[10px] font-medium border bg-red-500/10 text-red-400 border-red-500/20"
       : "px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-[10px] font-medium border border-zinc-700/50";
 
@@ -61,7 +78,7 @@ const InlineStatusBadge = ({ ticketId, currentStatus, isFullView }: { ticketId: 
         className={`${baseStyle} cursor-pointer hover:ring-1 hover:ring-blue-500/50 transition-all flex items-center gap-1.5 select-none w-max h-full`}
         onClick={() => setIsOpen(!isOpen)}
       >
-        {currentStatus}
+        {ticket.status}
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
       </div>
       
@@ -69,19 +86,25 @@ const InlineStatusBadge = ({ ticketId, currentStatus, isFullView }: { ticketId: 
         <>
           <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} />
           <div className="absolute top-full left-0 mt-1 w-32 bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-hidden z-50 py-1">
-            {STATUS_OPTIONS.map(status => (
-              <div 
-                key={status}
-                className={`px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-800 transition-colors ${status === currentStatus ? 'text-blue-400 bg-blue-500/5' : 'text-zinc-300'}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  updateKanbanTicket(ticketId, { status });
-                  setIsOpen(false);
-                }}
-              >
-                {status}
-              </div>
-            ))}
+            {STATUS_OPTIONS.map(status => {
+              const valid = isValidTransition(ticket, status);
+              return (
+                <button
+                  key={status}
+                  disabled={!valid}
+                  className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${!valid ? 'opacity-50 cursor-not-allowed text-zinc-500' : status === ticket.status ? 'text-blue-400 bg-blue-500/5 cursor-pointer hover:bg-zinc-800' : 'text-zinc-300 cursor-pointer hover:bg-zinc-800'}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (valid) {
+                      updateKanbanTicket(ticket.id, { status });
+                      setIsOpen(false);
+                    }
+                  }}
+                >
+                  {status}
+                </button>
+              );
+            })}
           </div>
         </>
       )}
@@ -345,7 +368,11 @@ export const KanbanWidget: React.FC = () => {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over) {
-      updateKanbanTicket(active.id as string, { status: over.id as KanbanTicket['status'] });
+      const ticket = kanbanMockTickets.find(t => t.id === active.id);
+      const newStatus = over.id as KanbanTicket['status'];
+      if (ticket && isValidTransition(ticket, newStatus)) {
+        updateKanbanTicket(ticket.id, { status: newStatus });
+      }
     }
     setActiveId(null);
   };
@@ -637,7 +664,7 @@ export const KanbanWidget: React.FC = () => {
                       <span className="shrink-0 font-mono text-xs text-zinc-500">{ticket.id}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-auto pt-2 border-t border-zinc-800/50">
-                      <InlineStatusBadge ticketId={ticket.id} currentStatus={ticket.status} />
+                      <InlineStatusBadge ticket={ticket} />
                       <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
                         {ticket.priority}
                       </span>
@@ -663,7 +690,7 @@ export const KanbanWidget: React.FC = () => {
                     <span className="text-sm font-medium text-zinc-200 truncate block">{ticket.title}</span>
                   </div>
                   <div className="w-32 shrink-0">
-                    <InlineStatusBadge ticketId={ticket.id} currentStatus={ticket.status} />
+                    <InlineStatusBadge ticket={ticket} />
                   </div>
                   <div className="w-24 shrink-0">
                     <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
@@ -978,7 +1005,7 @@ export const KanbanWidget: React.FC = () => {
                 <div className="flex items-center gap-3 text-sm">
                   <span className="font-mono text-zinc-500">{selectedTicketObj.id}</span>
                   <span className="text-zinc-700">•</span>
-                  <InlineStatusBadge ticketId={selectedTicketObj.id} currentStatus={selectedTicketObj.status} isFullView />
+                  <InlineStatusBadge ticket={selectedTicketObj} isFullView />
                 </div>
                 <div className="flex items-center gap-2">
                   <button 
@@ -1322,7 +1349,7 @@ export const KanbanWidget: React.FC = () => {
                     <>
                       <h2 className="text-lg font-medium text-zinc-100 mb-2 leading-snug">{selectedTicketObj.title}</h2>
                       <div className="flex items-center gap-2 mb-6">
-                        <InlineStatusBadge ticketId={selectedTicketObj.id} currentStatus={selectedTicketObj.status} />
+                        <InlineStatusBadge ticket={selectedTicketObj} />
                         <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.type}</span>
                         <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.priority}</span>
                       </div>
