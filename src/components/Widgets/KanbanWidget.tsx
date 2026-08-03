@@ -6,6 +6,9 @@ const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'In Progress'
 const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
 const TYPE_OPTIONS: KanbanTicket['type'][] = ['Feature', 'Bug', 'Chore', 'Spike'];
 
+// Robust DnD fallback state for WebKit
+let draggedTicketId: string | null = null;
+
 export const KanbanWidget: React.FC = () => {
   const { 
     kanbanMockCycles,
@@ -166,11 +169,12 @@ export const KanbanWidget: React.FC = () => {
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragOverColumn(null);
-                  const id = e.dataTransfer.getData("ticketId") || e.dataTransfer.getData("ticketid") || e.dataTransfer.getData("text/plain");
+                  const id = draggedTicketId || e.dataTransfer.getData("ticketId") || e.dataTransfer.getData("ticketid") || e.dataTransfer.getData("text/plain");
                   console.log("Dropping ticket ID:", id, "into status:", colName);
                   if (id) {
                     updateKanbanTicket(id, { status: colName });
                   }
+                  draggedTicketId = null;
                 }}
               >
                 {columnTickets.length === 0 ? (
@@ -183,6 +187,7 @@ export const KanbanWidget: React.FC = () => {
                       key={ticket.id}
                       draggable
                       onDragStart={(e) => {
+                        draggedTicketId = ticket.id;
                         e.dataTransfer.setData("ticketId", ticket.id);
                         e.dataTransfer.setData("text/plain", ticket.id);
                         e.dataTransfer.effectAllowed = "move";
