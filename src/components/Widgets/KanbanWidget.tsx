@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore, type KanbanTicket } from '../../store/useAppStore';
-import { DndContext, useDraggable, useDroppable, DragOverlay, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragOverlay, useSensor, useSensors, PointerSensor, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
 const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done'];
@@ -237,12 +237,20 @@ export const KanbanWidget: React.FC = () => {
   };
 
   const renderBoard = () => {
+    const sensors = useSensors(
+      useSensor(PointerSensor, {
+        activationConstraint: {
+          distance: 5,
+        },
+      })
+    );
+
     // Filter tickets by active cycle
     const boardTickets = filteredTickets.filter(t => t.cycleId === kanbanActiveCycleId);
     const activeTicket = activeId ? kanbanMockTickets.find(t => t.id === activeId) : null;
 
     return (
-      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex h-full p-6 gap-4 min-w-max">
           {KANBAN_COLUMNS.map((colName) => {
             const columnTickets = boardTickets.filter(t => t.status === colName);
