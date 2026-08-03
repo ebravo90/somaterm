@@ -4,7 +4,7 @@ import { DndContext, useDraggable, useDroppable, DragOverlay, useSensor, useSens
 import { CSS } from '@dnd-kit/utilities';
 
 const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done'];
-const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done'];
+const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done', 'Canceled'];
 const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
 const TYPE_OPTIONS: KanbanTicket['type'][] = ['Story', 'Task', 'Bug', 'Spike', 'Cycle'];
 
@@ -24,10 +24,10 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
       {...listeners}
       {...attributes}
       onClick={() => onSelect(ticket.id, 'preview')}
-      className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${isSelected ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'} ${isDragging ? 'opacity-30' : ''}`}
+      className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${isSelected ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'} ${isDragging ? 'opacity-30' : ''} ${ticket.status === 'Canceled' ? 'opacity-50' : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-sm font-medium text-zinc-200 line-clamp-2">{ticket.title}</span>
+        <span className={`text-sm font-medium text-zinc-200 line-clamp-2 ${ticket.status === 'Canceled' ? 'line-through text-zinc-400' : ''}`}>{ticket.title}</span>
       </div>
       <div className="flex items-center justify-between mt-1">
         <span className="text-xs font-mono text-zinc-500">{ticket.id}</span>
@@ -139,6 +139,7 @@ export const KanbanWidget: React.FC = () => {
   const [editStatus, setEditStatus] = useState<KanbanTicket['status']>('Open');
   const [editPriority, setEditPriority] = useState<KanbanTicket['priority']>('Medium');
   const [editType, setEditType] = useState<KanbanTicket['type']>('Story');
+  const [editCycleId, setEditCycleId] = useState<string>('');
 
   const [historyLimit, setHistoryLimit] = useState(5);
 
@@ -162,6 +163,7 @@ export const KanbanWidget: React.FC = () => {
   const [createStatus, setCreateStatus] = useState<KanbanTicket['status']>('Open');
   const [createPriority, setCreatePriority] = useState<KanbanTicket['priority']>('Medium');
   const [createType, setCreateType] = useState<KanbanTicket['type']>('Story');
+  const [createCycleId, setCreateCycleId] = useState<string>('');
 
   const selectedTicketObj = kanbanSelectedTicket ? kanbanMockTickets.find(t => t.id === kanbanSelectedTicket) : null;
   const activeCycleObj = kanbanActiveCycleId ? kanbanMockCycles.find(c => c.id === kanbanActiveCycleId) : null;
@@ -192,7 +194,8 @@ export const KanbanWidget: React.FC = () => {
         dod: editType === 'Cycle' ? undefined : editDod,
         status: editStatus,
         priority: editPriority,
-        type: editType
+        type: editType,
+        cycleId: editCycleId || undefined
       });
       setIsEditing(false);
     } else {
@@ -204,6 +207,7 @@ export const KanbanWidget: React.FC = () => {
       setEditStatus(selectedTicketObj.status);
       setEditPriority(selectedTicketObj.priority);
       setEditType(selectedTicketObj.type);
+      setEditCycleId(selectedTicketObj.cycleId || '');
       setIsEditing(true);
     }
   };
@@ -219,7 +223,7 @@ export const KanbanWidget: React.FC = () => {
       status: createStatus,
       priority: createPriority,
       type: createType,
-      cycleId: kanbanActiveCycleId || undefined // Optional binding to active cycle
+      cycleId: createCycleId || undefined
     });
 
     // Reset and close
@@ -230,6 +234,7 @@ export const KanbanWidget: React.FC = () => {
     setCreateStatus('Open');
     setCreatePriority('Medium');
     setCreateType('Story');
+    setCreateCycleId('');
     setShowCreateModal(false);
   };
 
@@ -322,7 +327,7 @@ export const KanbanWidget: React.FC = () => {
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex h-full p-6 gap-4 min-w-max">
           {KANBAN_COLUMNS.map((colName) => {
-            const columnTickets = boardTickets.filter(t => t.status === colName);
+            const columnTickets = boardTickets.filter(t => t.status === colName || (colName === 'Done' && t.status === 'Canceled'));
             return (
               <KanbanColumn
                 key={colName}
@@ -719,6 +724,17 @@ export const KanbanWidget: React.FC = () => {
                     {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Cycle</label>
+                  <select 
+                    value={createCycleId}
+                    onChange={(e) => setCreateCycleId(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                    <option value="">None</option>
+                    {kanbanMockCycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Description</label>
@@ -776,7 +792,7 @@ export const KanbanWidget: React.FC = () => {
       {/* Left Internal Dock */}
       <div className="w-14 flex flex-col items-center py-4 border-r border-zinc-800 bg-zinc-950/80 shrink-0 z-10">
         <button 
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => { setShowCreateModal(true); setCreateCycleId(kanbanActiveCycleId || ''); }}
           className="w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow-sm transition-colors mb-6"
           title="Create Issue"
         >
@@ -966,6 +982,14 @@ export const KanbanWidget: React.FC = () => {
                       className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
                     >
                       {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <select 
+                      value={editCycleId}
+                      onChange={(e) => setEditCycleId(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="">No Cycle</option>
+                      {kanbanMockCycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                     <select 
                       value={editStatus}
@@ -1219,6 +1243,14 @@ export const KanbanWidget: React.FC = () => {
                           className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
                         >
                           {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <select 
+                          value={editCycleId}
+                          onChange={(e) => setEditCycleId(e.target.value)}
+                          className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="">No Cycle</option>
+                          {kanbanMockCycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <textarea 

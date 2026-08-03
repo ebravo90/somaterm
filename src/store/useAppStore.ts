@@ -112,7 +112,7 @@ export interface TicketComment {
 export interface KanbanTicket {
   id: string;
   title: string;
-  status: 'Open' | 'Ready' | 'In Progress' | 'Blocked' | 'Testing' | 'UAT' | 'Done';
+  status: 'Open' | 'Ready' | 'In Progress' | 'Blocked' | 'Testing' | 'UAT' | 'Done' | 'Canceled';
   description: string;
   acc?: string;
   dod?: string;
