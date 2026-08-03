@@ -883,7 +883,15 @@ export const KanbanWidget: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center">
-            {kanbanTicketViewMode !== 'full' && (
+            {kanbanCurrentSection === 'board' ? (
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-zinc-700 bg-zinc-800 flex items-center justify-center">
+                {userAvatar ? (
+                  <img src={userAvatar} alt="User Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                )}
+              </div>
+            ) : kanbanTicketViewMode !== 'full' && (
               <div className="relative">
                 <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"></circle>
