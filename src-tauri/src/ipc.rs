@@ -658,3 +658,35 @@ pub fn get_initial_cwd() -> Result<String, String> {
 pub fn read_file_content(path: String) -> Result<String, String> {
     std::fs::read_to_string(path).map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn search_files(target_path: String, query: String) -> Result<Vec<FileNode>, String> {
+    use ignore::WalkBuilder;
+    let query_lower = query.to_lowercase();
+    let mut results = Vec::new();
+
+    let walker = WalkBuilder::new(&target_path)
+        .hidden(false)
+        .git_ignore(true)
+        .ignore(true)
+        .build();
+
+    for result in walker {
+        if let Ok(entry) = result {
+            if entry.path().is_dir() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.to_lowercase().contains(&query_lower) {
+                results.push(FileNode {
+                    name,
+                    path: entry.path().to_string_lossy().to_string(),
+                    is_dir: false,
+                    children: None,
+                });
+            }
+        }
+    }
+
+    Ok(results)
+}

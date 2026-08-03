@@ -109,6 +109,13 @@ export interface TicketComment {
   content: string;
 }
 
+export type TicketRelation = 'Blocks' | 'Blocked by' | 'Relates to';
+
+export interface TicketLink {
+  targetTicketId: string;
+  relation: TicketRelation;
+}
+
 export interface KanbanTicket {
   id: string;
   title: string;
@@ -121,6 +128,7 @@ export interface KanbanTicket {
   cycleId?: string;
   history: TicketHistoryEvent[];
   comments?: TicketComment[];
+  links?: TicketLink[];
 }
 
 export interface KanbanCycle {
@@ -237,6 +245,7 @@ interface AppState {
   updateKanbanTicket: (ticketId: string, updates: Partial<KanbanTicket>) => void;
   addKanbanTicket: (ticket: Omit<KanbanTicket, 'id'>) => void;
   addComment: (ticketId: string, content: string, author: string, role: 'human' | 'agent') => void;
+  linkTickets: (sourceId: string, targetId: string, relation: TicketRelation) => void;
   kanbanSearchQuery: string;
   setKanbanSearchQuery: (query: string) => void;
   userAvatar: string;
@@ -395,15 +404,31 @@ export const useAppStore = create<AppState>()(
     return {
       kanbanMockTickets: state.kanbanMockTickets.map(t => {
         if (t.id === ticketId) {
-          return {
-            ...t,
-            comments: [...(t.comments || []), newComment]
-          };
+          const newComments = [...(t.comments || []), { id: `c-${Date.now()}`, timestamp: Date.now(), author, role, content }];
+          return { ...t, comments: newComments };
         }
         return t;
       })
     };
   }),
+
+  linkTickets: (sourceId, targetId, relation) => 
+    set((state) => {
+      const inverseRelation = relation === 'Blocks' ? 'Blocked by' : relation === 'Blocked by' ? 'Blocks' : 'Relates to';
+      return {
+        kanbanMockTickets: state.kanbanMockTickets.map(t => {
+          if (t.id === sourceId) {
+            const newLinks = [...(t.links || []), { targetTicketId: targetId, relation }];
+            return { ...t, links: newLinks };
+          }
+          if (t.id === targetId) {
+            const newLinks = [...(t.links || []), { targetTicketId: sourceId, relation: inverseRelation }];
+            return { ...t, links: newLinks };
+          }
+          return t;
+        })
+      };
+    }),
   
   navigateKanbanBack: () => set((state) => {
     if (state.kanbanHistoryIndex > 0) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAppStore, type KanbanTicket } from '../../store/useAppStore';
+import { useAppStore, type KanbanTicket, type TicketRelation } from '../../store/useAppStore';
 import { DndContext, useDraggable, useDroppable, DragOverlay, useSensor, useSensors, PointerSensor, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -167,6 +167,7 @@ export const KanbanWidget: React.FC = () => {
     kanbanHistoryIndex,
     updateKanbanTicket,
     addKanbanTicket,
+    linkTickets,
     kanbanSearchQuery,
     setKanbanSearchQuery,
     userAvatar,
@@ -213,6 +214,11 @@ export const KanbanWidget: React.FC = () => {
   }, [kanbanSelectedTicket]);
 
   const [newComment, setNewComment] = useState('');
+
+  // Link Ticket State
+  const [linkSearch, setLinkSearch] = useState('');
+  const [linkRelation, setLinkRelation] = useState<TicketRelation>('Relates to');
+  const [showLinkDropdown, setShowLinkDropdown] = useState(false);
 
   // DnD State
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -1121,6 +1127,88 @@ export const KanbanWidget: React.FC = () => {
                       <p className="leading-relaxed text-zinc-400 whitespace-pre-wrap">{selectedTicketObj.dod || 'Not specified.'}</p>
                     )}
                   </>
+                )}
+
+                {/* Linked Tickets Section */}
+                {!isEditing && selectedTicketObj && (
+                  <div className="mt-12 border-t border-zinc-800/50 pt-6">
+                    <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                      Linked Tickets
+                    </h3>
+                    
+                    <div className="flex flex-col gap-3 mb-4">
+                      {selectedTicketObj.links?.map((link, idx) => {
+                        const target = kanbanMockTickets.find(t => t.id === link.targetTicketId);
+                        if (!target) return null;
+                        return (
+                          <div key={idx} className="flex items-center gap-3 p-2 rounded-md bg-zinc-900 border border-zinc-800/50">
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${link.relation === 'Blocks' ? 'bg-red-500/10 text-red-400 border-red-500/20' : link.relation === 'Blocked by' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                              {link.relation}
+                            </span>
+                            <span className="font-mono text-xs text-zinc-500 shrink-0">{target.id}</span>
+                            <span className="text-sm text-zinc-300 truncate cursor-pointer hover:text-blue-400 transition-colors" onClick={() => selectKanbanTicket(target.id, 'full')}>{target.title}</span>
+                          </div>
+                        );
+                      })}
+                      {(!selectedTicketObj.links || selectedTicketObj.links.length === 0) && (
+                        <div className="text-sm text-zinc-500 italic mb-2">No tickets linked.</div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 relative">
+                      <select 
+                        value={linkRelation}
+                        onChange={(e) => setLinkRelation(e.target.value as TicketRelation)}
+                        className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500 h-9"
+                      >
+                        <option value="Relates to">Relates to</option>
+                        <option value="Blocks">Blocks</option>
+                        <option value="Blocked by">Blocked by</option>
+                      </select>
+                      
+                      <div className="relative flex-1">
+                        <input 
+                          type="text"
+                          value={linkSearch}
+                          onChange={(e) => {
+                            setLinkSearch(e.target.value);
+                            setShowLinkDropdown(true);
+                          }}
+                          onFocus={() => setShowLinkDropdown(true)}
+                          placeholder="Search ticket to link (e.g., SOMA-1)..."
+                          className="w-full bg-zinc-900 border border-zinc-700 rounded py-1.5 px-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500 h-9"
+                        />
+                        {showLinkDropdown && linkSearch && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setShowLinkDropdown(false)} />
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-md shadow-xl overflow-y-auto max-h-48 z-20 py-1">
+                              {kanbanMockTickets
+                                .filter(t => t.id !== selectedTicketObj.id && (t.id.toLowerCase().includes(linkSearch.toLowerCase()) || t.title.toLowerCase().includes(linkSearch.toLowerCase())))
+                                .slice(0, 10)
+                                .map(t => (
+                                  <div 
+                                    key={t.id}
+                                    className="px-3 py-2 hover:bg-zinc-800 cursor-pointer flex items-center gap-2"
+                                    onClick={() => {
+                                      linkTickets(selectedTicketObj.id, t.id, linkRelation);
+                                      setLinkSearch('');
+                                      setShowLinkDropdown(false);
+                                    }}
+                                  >
+                                    <span className="font-mono text-xs text-zinc-500">{t.id}</span>
+                                    <span className="text-sm text-zinc-300 truncate">{t.title}</span>
+                                  </div>
+                                ))}
+                              {kanbanMockTickets.filter(t => t.id !== selectedTicketObj.id && (t.id.toLowerCase().includes(linkSearch.toLowerCase()) || t.title.toLowerCase().includes(linkSearch.toLowerCase()))).length === 0 && (
+                                <div className="px-3 py-2 text-sm text-zinc-500 italic">No tickets found</div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {!isEditing && selectedTicketObj.history && selectedTicketObj.history.length > 0 && (

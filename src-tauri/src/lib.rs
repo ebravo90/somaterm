@@ -161,7 +161,8 @@ pub fn build_menu(
 pub fn run() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_process::init());
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init());
         
     builder.setup(|app| {
             if cfg!(debug_assertions) {
@@ -219,7 +220,8 @@ pub fn run() {
             ipc::get_file_tree,
             ipc::get_system_shell,
             ipc::get_initial_cwd,
-            ipc::read_file_content
+            ipc::read_file_content,
+            ipc::search_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
