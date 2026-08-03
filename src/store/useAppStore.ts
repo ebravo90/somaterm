@@ -96,7 +96,7 @@ export interface KanbanTicket {
   title: string;
   status: 'Open' | 'Ready' | 'In Progress' | 'Testing' | 'UAT' | 'Done';
   description: string;
-  type: 'Feature' | 'Bug' | 'Chore';
+  type: 'Feature' | 'Bug' | 'Chore' | 'Spike';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   cycleId?: string;
 }
@@ -213,6 +213,9 @@ interface AppState {
   navigateKanbanBack: () => void;
   navigateKanbanForward: () => void;
   updateKanbanTicket: (ticketId: string, updates: Partial<KanbanTicket>) => void;
+  addKanbanTicket: (ticket: Omit<KanbanTicket, 'id'>) => void;
+  kanbanSearchQuery: string;
+  setKanbanSearchQuery: (query: string) => void;
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -266,6 +269,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     { id: 'SOMA-3', title: 'Fix CSS Bug in Agent', status: 'Open', description: 'The chat bubbles are slightly misaligned on mobile view.', type: 'Bug', priority: 'Low', cycleId: 'CYCLE-1' },
     { id: 'SOMA-4', title: 'Deploy Initial MVP', status: 'Done', description: 'Ship the first version of the internal board.', type: 'Chore', priority: 'Critical', cycleId: 'CYCLE-3' },
   ],
+  kanbanSearchQuery: '',
+  setKanbanSearchQuery: (query: string) => set({ kanbanSearchQuery: query }),
   kanbanCurrentSection: 'board',
   kanbanSelectedTicket: null,
   kanbanTicketViewMode: null,
@@ -304,6 +309,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       t.id === ticketId ? { ...t, ...updates } : t
     )
   })),
+
+  addKanbanTicket: (ticket) => set((state) => {
+    // Generate a mock ID based on current length + 1 (SOMA-X)
+    const newId = `SOMA-${state.kanbanMockTickets.length + 1}`;
+    const newTicket: KanbanTicket = {
+      ...ticket,
+      id: newId
+    };
+    return {
+      kanbanMockTickets: [newTicket, ...state.kanbanMockTickets]
+    };
+  }),
   
   navigateKanbanBack: () => set((state) => {
     if (state.kanbanHistoryIndex > 0) {

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useAppStore } from '../../store/useAppStore';
+import { useAppStore, type KanbanTicket } from '../../store/useAppStore';
 
-const KANBAN_COLUMNS = ['Open', 'Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
+const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
+const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
+const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
+const TYPE_OPTIONS: KanbanTicket['type'][] = ['Feature', 'Bug', 'Chore', 'Spike'];
 
 export const KanbanWidget: React.FC = () => {
   const { 
@@ -18,7 +21,10 @@ export const KanbanWidget: React.FC = () => {
     navigateKanbanForward,
     kanbanHistory,
     kanbanHistoryIndex,
-    updateKanbanTicket
+    updateKanbanTicket,
+    addKanbanTicket,
+    kanbanSearchQuery,
+    setKanbanSearchQuery
   } = useAppStore();
 
   const [cyclesLayout, setCyclesLayout] = useState<'grid' | 'list'>('grid');
@@ -45,11 +51,29 @@ export const KanbanWidget: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editStatus, setEditStatus] = useState<KanbanTicket['status']>('Open');
+  const [editPriority, setEditPriority] = useState<KanbanTicket['priority']>('Medium');
+  const [editType, setEditType] = useState<KanbanTicket['type']>('Feature');
+
+  // Create Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createDescription, setCreateDescription] = useState('');
+  const [createStatus, setCreateStatus] = useState<KanbanTicket['status']>('Open');
+  const [createPriority, setCreatePriority] = useState<KanbanTicket['priority']>('Medium');
+  const [createType, setCreateType] = useState<KanbanTicket['type']>('Feature');
 
   const selectedTicketObj = kanbanSelectedTicket ? kanbanMockTickets.find(t => t.id === kanbanSelectedTicket) : null;
   const activeCycleObj = kanbanActiveCycleId ? kanbanMockCycles.find(c => c.id === kanbanActiveCycleId) : null;
   const canGoBack = kanbanHistoryIndex > 0;
   const canGoForward = kanbanHistoryIndex < kanbanHistory.length - 1;
+
+  // Global Filtered Tickets
+  const filteredTickets = kanbanMockTickets.filter(t => 
+    !kanbanSearchQuery || 
+    t.title.toLowerCase().includes(kanbanSearchQuery.toLowerCase()) || 
+    t.description.toLowerCase().includes(kanbanSearchQuery.toLowerCase())
+  );
 
   // Reset edit state when selected ticket changes
   useEffect(() => {
@@ -63,28 +87,79 @@ export const KanbanWidget: React.FC = () => {
       // Save changes
       updateKanbanTicket(selectedTicketObj.id, {
         title: editTitle,
-        description: editDescription
+        description: editDescription,
+        status: editStatus,
+        priority: editPriority,
+        type: editType
       });
       setIsEditing(false);
     } else {
       // Enter edit mode
       setEditTitle(selectedTicketObj.title);
       setEditDescription(selectedTicketObj.description);
+      setEditStatus(selectedTicketObj.status);
+      setEditPriority(selectedTicketObj.priority);
+      setEditType(selectedTicketObj.type);
       setIsEditing(true);
     }
+  };
+
+  const handleCreateTicket = () => {
+    if (!createTitle.trim()) return;
+    
+    addKanbanTicket({
+      title: createTitle,
+      description: createDescription,
+      status: createStatus,
+      priority: createPriority,
+      type: createType,
+      cycleId: kanbanActiveCycleId || undefined // Optional binding to active cycle
+    });
+
+    // Reset and close
+    setCreateTitle('');
+    setCreateDescription('');
+    setCreateStatus('Open');
+    setCreatePriority('Medium');
+    setCreateType('Feature');
+    setShowCreateModal(false);
+  };
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, ticketId: string) => {
+    e.dataTransfer.setData('ticketId', ticketId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, newStatus: KanbanTicket['status']) => {
+    e.preventDefault();
+    const ticketId = e.dataTransfer.getData('ticketId');
+    if (ticketId) {
+      updateKanbanTicket(ticketId, { status: newStatus });
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
   // Board Area Content
   const renderBoard = () => {
     // Filter tickets by active cycle
-    const boardTickets = kanbanMockTickets.filter(t => t.cycleId === kanbanActiveCycleId);
+    const boardTickets = filteredTickets.filter(t => t.cycleId === kanbanActiveCycleId);
     
     return (
       <div className="flex h-full p-6 gap-4 min-w-max">
         {KANBAN_COLUMNS.map((colName) => {
           const columnTickets = boardTickets.filter(t => t.status === colName);
           return (
-            <div key={colName} className="w-72 flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-lg overflow-hidden shrink-0">
+            <div 
+              key={colName} 
+              className="w-72 flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-lg overflow-hidden shrink-0"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, colName)}
+            >
               <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0">
                 <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">{colName}</span>
                 <span className="text-xs text-zinc-600 font-medium bg-zinc-800/50 px-2 py-0.5 rounded-full">{columnTickets.length}</span>
@@ -98,6 +173,8 @@ export const KanbanWidget: React.FC = () => {
                   columnTickets.map(ticket => (
                     <div 
                       key={ticket.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, ticket.id)}
                       onClick={() => selectKanbanTicket(ticket.id, 'preview')}
                       className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${kanbanSelectedTicket === ticket.id ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'}`}
                     >
@@ -182,7 +259,8 @@ export const KanbanWidget: React.FC = () => {
             <div className="col-span-full py-12 text-center text-zinc-500">No cycles found.</div>
           ) : (
             paginatedCycles.map(cycle => {
-              const cycleTickets = kanbanMockTickets.filter(t => t.cycleId === cycle.id);
+              // Note: using filteredTickets instead of kanbanMockTickets
+              const cycleTickets = filteredTickets.filter(t => t.cycleId === cycle.id);
               const total = cycleTickets.length;
               const done = cycleTickets.filter(t => t.status === 'Done').length;
               const progress = total === 0 ? 0 : Math.round((done / total) * 100);
@@ -286,8 +364,8 @@ export const KanbanWidget: React.FC = () => {
 
   const renderAllTickets = () => {
     const startIdx = (allTicketsPage - 1) * allTicketsItemsPerPage;
-    const paginatedTickets = kanbanMockTickets.slice(startIdx, startIdx + allTicketsItemsPerPage);
-    const totalPages = Math.max(1, Math.ceil(kanbanMockTickets.length / allTicketsItemsPerPage));
+    const paginatedTickets = filteredTickets.slice(startIdx, startIdx + allTicketsItemsPerPage);
+    const totalPages = Math.max(1, Math.ceil(filteredTickets.length / allTicketsItemsPerPage));
 
     return (
       <div className="p-8 max-w-5xl mx-auto w-full h-full overflow-y-auto flex flex-col">
@@ -423,9 +501,96 @@ export const KanbanWidget: React.FC = () => {
   return (
     <div className="@container w-full h-full flex bg-[#1e1e1e] relative overflow-hidden">
       
+      {/* Create Ticket Modal Overlay */}
+      {showCreateModal && (
+        <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-sm">
+          <div className="w-[500px] bg-zinc-900 border border-zinc-800 rounded-lg shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-950/50">
+              <h3 className="text-lg font-medium text-zinc-100">Create New Ticket</h3>
+              <button 
+                onClick={() => setShowCreateModal(false)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4 overflow-y-auto max-h-[60vh]">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Title</label>
+                <input 
+                  type="text" 
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  placeholder="Ticket title..."
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Status</label>
+                  <select 
+                    value={createStatus}
+                    onChange={(e) => setCreateStatus(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Priority</label>
+                  <select 
+                    value={createPriority}
+                    onChange={(e) => setCreatePriority(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                    {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Type</label>
+                  <select 
+                    value={createType}
+                    onChange={(e) => setCreateType(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                    {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Description</label>
+                <textarea 
+                  value={createDescription}
+                  onChange={(e) => setCreateDescription(e.target.value)}
+                  className="w-full h-32 bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                  placeholder="Ticket details..."
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-zinc-800/50 flex items-center justify-end gap-3 bg-zinc-950/50">
+              <button 
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-1.5 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleCreateTicket}
+                disabled={!createTitle.trim()}
+                className="px-4 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Create Ticket
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Left Internal Dock */}
       <div className="w-14 flex flex-col items-center py-4 border-r border-zinc-800 bg-zinc-950/80 shrink-0 z-10">
         <button 
+          onClick={() => setShowCreateModal(true)}
           className="w-8 h-8 flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white rounded-md shadow-sm transition-colors mb-6"
           title="Create Issue"
         >
@@ -528,6 +693,8 @@ export const KanbanWidget: React.FC = () => {
                 </svg>
                 <input 
                   type="text" 
+                  value={kanbanSearchQuery}
+                  onChange={(e) => setKanbanSearchQuery(e.target.value)}
                   placeholder="Filter tasks..." 
                   className="bg-zinc-900 border border-zinc-800 rounded-md py-1 pl-8 pr-3 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700 w-48 transition-colors"
                 />
@@ -568,26 +735,50 @@ export const KanbanWidget: React.FC = () => {
               </div>
               
               {isEditing ? (
-                <div className="mb-6">
+                <div className="mb-6 flex flex-col gap-4">
                   <input 
                     type="text" 
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     className="w-full text-3xl font-semibold text-zinc-100 bg-zinc-900 border border-zinc-700 rounded-md py-2 px-3 focus:outline-none focus:border-blue-500"
                   />
+                  <div className="flex items-center gap-4">
+                    <select 
+                      value={editType}
+                      onChange={(e) => setEditType(e.target.value as any)}
+                      className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
+                    >
+                      {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <select 
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(e.target.value as any)}
+                      className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
+                    >
+                      {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                    <select 
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as any)}
+                      className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
+                    >
+                      {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
                 </div>
               ) : (
-                <h1 className="text-3xl font-semibold text-zinc-100 mb-6 leading-tight">{selectedTicketObj.title}</h1>
+                <>
+                  <h1 className="text-3xl font-semibold text-zinc-100 mb-6 leading-tight">{selectedTicketObj.title}</h1>
+                  <div className="flex items-center gap-2 mb-10">
+                    <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-1.5">
+                      Type: <span className="text-zinc-200">{selectedTicketObj.type}</span>
+                    </span>
+                    <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-1.5">
+                      Priority: <span className="text-zinc-200">{selectedTicketObj.priority}</span>
+                    </span>
+                  </div>
+                </>
               )}
-              
-              <div className="flex items-center gap-2 mb-10">
-                <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-1.5">
-                  Type: <span className="text-zinc-200">{selectedTicketObj.type}</span>
-                </span>
-                <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-1.5">
-                  Priority: <span className="text-zinc-200">{selectedTicketObj.priority}</span>
-                </span>
-              </div>
               
               <div className="prose prose-invert prose-zinc max-w-none text-zinc-300">
                 <h3 className="text-lg font-medium text-zinc-200 mb-2">Description</h3>
@@ -662,9 +853,27 @@ export const KanbanWidget: React.FC = () => {
                         className="w-full text-lg font-medium text-zinc-100 bg-zinc-900 border border-zinc-700 rounded py-1.5 px-3 focus:outline-none focus:border-blue-500"
                       />
                       <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.status}</span>
-                        <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.type}</span>
-                        <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.priority}</span>
+                        <select 
+                          value={editStatus}
+                          onChange={(e) => setEditStatus(e.target.value as any)}
+                          className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <select 
+                          value={editType}
+                          onChange={(e) => setEditType(e.target.value as any)}
+                          className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <select 
+                          value={editPriority}
+                          onChange={(e) => setEditPriority(e.target.value as any)}
+                          className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
+                        >
+                          {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
                       </div>
                       <textarea 
                         value={editDescription}
