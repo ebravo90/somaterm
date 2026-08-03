@@ -14,7 +14,6 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
   });
 
   const style = {
-    transform: CSS.Translate.toString(transform),
     zIndex: isDragging ? 50 : undefined,
   };
 
