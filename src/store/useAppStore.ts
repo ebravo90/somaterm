@@ -97,6 +97,8 @@ export interface KanbanTicket {
   title: string;
   status: 'Open' | 'Ready' | 'In Progress' | 'Blocked' | 'Testing' | 'UAT' | 'Done';
   description: string;
+  acc?: string;
+  dod?: string;
   type: 'Feature' | 'Bug' | 'Chore' | 'Spike';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   cycleId?: string;

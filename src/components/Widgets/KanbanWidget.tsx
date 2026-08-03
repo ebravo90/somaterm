@@ -132,6 +132,8 @@ export const KanbanWidget: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editAcc, setEditAcc] = useState('');
+  const [editDod, setEditDod] = useState('');
   const [editStatus, setEditStatus] = useState<KanbanTicket['status']>('Open');
   const [editPriority, setEditPriority] = useState<KanbanTicket['priority']>('Medium');
   const [editType, setEditType] = useState<KanbanTicket['type']>('Feature');
@@ -143,6 +145,8 @@ export const KanbanWidget: React.FC = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createTitle, setCreateTitle] = useState('');
   const [createDescription, setCreateDescription] = useState('');
+  const [createAcc, setCreateAcc] = useState('');
+  const [createDod, setCreateDod] = useState('');
   const [createStatus, setCreateStatus] = useState<KanbanTicket['status']>('Open');
   const [createPriority, setCreatePriority] = useState<KanbanTicket['priority']>('Medium');
   const [createType, setCreateType] = useState<KanbanTicket['type']>('Feature');
@@ -172,6 +176,8 @@ export const KanbanWidget: React.FC = () => {
       updateKanbanTicket(selectedTicketObj.id, {
         title: editTitle,
         description: editDescription,
+        acc: editAcc,
+        dod: editDod,
         status: editStatus,
         priority: editPriority,
         type: editType
@@ -181,6 +187,8 @@ export const KanbanWidget: React.FC = () => {
       // Enter edit mode
       setEditTitle(selectedTicketObj.title);
       setEditDescription(selectedTicketObj.description);
+      setEditAcc(selectedTicketObj.acc || '');
+      setEditDod(selectedTicketObj.dod || '');
       setEditStatus(selectedTicketObj.status);
       setEditPriority(selectedTicketObj.priority);
       setEditType(selectedTicketObj.type);
@@ -194,6 +202,8 @@ export const KanbanWidget: React.FC = () => {
     addKanbanTicket({
       title: createTitle,
       description: createDescription,
+      acc: createAcc,
+      dod: createDod,
       status: createStatus,
       priority: createPriority,
       type: createType,
@@ -203,6 +213,8 @@ export const KanbanWidget: React.FC = () => {
     // Reset and close
     setCreateTitle('');
     setCreateDescription('');
+    setCreateAcc('');
+    setCreateDod('');
     setCreateStatus('Open');
     setCreatePriority('Medium');
     setCreateType('Feature');
@@ -640,6 +652,26 @@ export const KanbanWidget: React.FC = () => {
                   placeholder="Ticket details..."
                 />
               </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Acceptance Criteria</label>
+                  <textarea 
+                    value={createAcc}
+                    onChange={(e) => setCreateAcc(e.target.value)}
+                    className="w-full h-24 bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                    placeholder="ACC..."
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Definition of Done</label>
+                  <textarea 
+                    value={createDod}
+                    onChange={(e) => setCreateDod(e.target.value)}
+                    className="w-full h-24 bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors resize-none"
+                    placeholder="DoD..."
+                  />
+                </div>
+              </div>
             </div>
             <div className="px-6 py-4 border-t border-zinc-800/50 flex items-center justify-end gap-3 bg-zinc-950/50">
               <button 
@@ -864,6 +896,28 @@ export const KanbanWidget: React.FC = () => {
                 ) : (
                   <p className="leading-relaxed text-zinc-400 whitespace-pre-wrap">{selectedTicketObj.description}</p>
                 )}
+                
+                <h3 className="text-lg font-medium text-zinc-200 mt-6 mb-2">Acceptance Criteria</h3>
+                {isEditing ? (
+                  <textarea 
+                    value={editAcc}
+                    onChange={(e) => setEditAcc(e.target.value)}
+                    className="w-full h-32 bg-zinc-900 border border-zinc-700 rounded-md py-2 px-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500 resize-none"
+                  />
+                ) : (
+                  <p className="leading-relaxed text-zinc-400 whitespace-pre-wrap">{selectedTicketObj.acc || 'Not specified.'}</p>
+                )}
+
+                <h3 className="text-lg font-medium text-zinc-200 mt-6 mb-2">Definition of Done</h3>
+                {isEditing ? (
+                  <textarea 
+                    value={editDod}
+                    onChange={(e) => setEditDod(e.target.value)}
+                    className="w-full h-32 bg-zinc-900 border border-zinc-700 rounded-md py-2 px-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500 resize-none"
+                  />
+                ) : (
+                  <p className="leading-relaxed text-zinc-400 whitespace-pre-wrap">{selectedTicketObj.dod || 'Not specified.'}</p>
+                )}
               </div>
             </div>
           </div>
@@ -953,6 +1007,19 @@ export const KanbanWidget: React.FC = () => {
                         value={editDescription}
                         onChange={(e) => setEditDescription(e.target.value)}
                         className="w-full h-32 bg-zinc-900 border border-zinc-700 rounded py-2 px-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500 resize-none"
+                        placeholder="Description..."
+                      />
+                      <textarea 
+                        value={editAcc}
+                        onChange={(e) => setEditAcc(e.target.value)}
+                        className="w-full h-24 bg-zinc-900 border border-zinc-700 rounded py-2 px-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500 resize-none mt-2"
+                        placeholder="Acceptance Criteria..."
+                      />
+                      <textarea 
+                        value={editDod}
+                        onChange={(e) => setEditDod(e.target.value)}
+                        className="w-full h-24 bg-zinc-900 border border-zinc-700 rounded py-2 px-3 text-sm text-zinc-300 focus:outline-none focus:border-blue-500 resize-none mt-2"
+                        placeholder="Definition of Done..."
                       />
                     </div>
                   ) : (
@@ -964,6 +1031,18 @@ export const KanbanWidget: React.FC = () => {
                         <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.priority}</span>
                       </div>
                       <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{selectedTicketObj.description}</p>
+                      {selectedTicketObj.acc && (
+                        <div className="mt-4 border-t border-zinc-800/50 pt-3">
+                          <h4 className="text-xs font-medium text-zinc-200 mb-1">Acceptance Criteria</h4>
+                          <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{selectedTicketObj.acc}</p>
+                        </div>
+                      )}
+                      {selectedTicketObj.dod && (
+                        <div className="mt-4 border-t border-zinc-800/50 pt-3">
+                          <h4 className="text-xs font-medium text-zinc-200 mb-1">Definition of Done</h4>
+                          <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{selectedTicketObj.dod}</p>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
