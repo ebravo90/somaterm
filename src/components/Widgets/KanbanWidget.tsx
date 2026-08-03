@@ -105,7 +105,9 @@ export const KanbanWidget: React.FC = () => {
     updateKanbanTicket,
     addKanbanTicket,
     kanbanSearchQuery,
-    setKanbanSearchQuery
+    setKanbanSearchQuery,
+    userAvatar,
+    setUserAvatar
   } = useAppStore();
 
   const [cyclesLayout, setCyclesLayout] = useState<'grid' | 'list'>('grid');
@@ -231,7 +233,64 @@ export const KanbanWidget: React.FC = () => {
     setShowCreateModal(false);
   };
 
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setUserAvatar(base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
+  const renderSettingsView = () => {
+    return (
+      <div className="flex flex-col h-full bg-zinc-950 p-8 overflow-y-auto">
+        <h2 className="text-2xl font-bold text-zinc-100 mb-6">Settings</h2>
+        
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6 max-w-2xl">
+          <h3 className="text-lg font-medium text-zinc-200 mb-4 border-b border-zinc-800 pb-2">User Profile</h3>
+          
+          <div className="flex items-center gap-6">
+            <div className="flex-shrink-0">
+              <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-zinc-700 bg-zinc-800">
+                {userAvatar ? (
+                  <img src={userAvatar} alt="User Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex-1 flex flex-col gap-3">
+              <div>
+                <label className="block text-sm font-medium text-zinc-400 mb-1">Avatar Image</label>
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded transition-colors text-sm font-medium inline-block">
+                    Upload new image
+                    <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                  </label>
+                  {userAvatar && (
+                    <button 
+                      onClick={() => setUserAvatar('')}
+                      className="text-sm text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-zinc-500 mt-2">Recommended: Square image, max 2MB. Supports PNG, JPG, GIF.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Board Area Content
   const handleDragStart = (event: DragStartEvent) => {
@@ -779,6 +838,22 @@ export const KanbanWidget: React.FC = () => {
             </svg>
           </button>
         </div>
+        
+        <div className="flex-1" />
+        
+        <div className="flex flex-col w-full px-2 mb-4">
+          {/* Settings Icon */}
+          <button 
+            onClick={() => setKanbanSection('settings')}
+            className={`w-full aspect-square flex items-center justify-center rounded-md transition-colors ${kanbanCurrentSection === 'settings' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'}`}
+            title="Settings"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -987,12 +1062,28 @@ export const KanbanWidget: React.FC = () => {
                     <div className="flex flex-col gap-4 mb-6">
                       {selectedTicketObj.comments.map((comment) => (
                         <div key={comment.id} className={`flex flex-col ${comment.role === 'human' ? 'items-end' : 'items-start'}`}>
-                          <div className={`max-w-[80%] rounded-lg px-4 py-2 ${comment.role === 'human' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-100' : 'bg-zinc-800 border border-zinc-700 text-zinc-200'}`}>
-                            <div className="text-xs opacity-60 mb-1 flex justify-between gap-4">
+                          <div className={`flex gap-3 max-w-[80%] ${comment.role === 'human' ? 'flex-row-reverse' : 'flex-row'}`}>
+                            {comment.role === 'human' && (
+                              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 border border-zinc-700 bg-zinc-800 flex items-center justify-center">
+                                {userAvatar ? (
+                                  <img src={userAvatar} alt="Human" className="w-full h-full object-cover" />
+                                ) : (
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-500"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                )}
+                              </div>
+                            )}
+                            {comment.role === 'agent' && (
+                              <div className="w-8 h-8 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center flex-shrink-0">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>
+                              </div>
+                            )}
+                            <div className={`rounded-lg px-4 py-2 ${comment.role === 'human' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-100' : 'bg-zinc-800 border border-zinc-700 text-zinc-200'}`}>
+                              <div className="text-xs opacity-60 mb-1 flex justify-between gap-4">
                               <span>{comment.author}</span>
                               <span>{new Date(comment.timestamp).toLocaleString()}</span>
                             </div>
-                            <div className="text-sm whitespace-pre-wrap">{comment.content}</div>
+                              <div className="text-sm whitespace-pre-wrap">{comment.content}</div>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1035,7 +1126,8 @@ export const KanbanWidget: React.FC = () => {
                 {kanbanCurrentSection === 'board' ? renderBoard() : 
                  kanbanCurrentSection === 'cycles' ? renderCyclesList() : 
                  kanbanCurrentSection === 'all' ? renderAllTickets(false) : 
-                 kanbanCurrentSection === 'backlog' ? renderAllTickets(true) : (
+                 kanbanCurrentSection === 'backlog' ? renderAllTickets(true) : 
+                 kanbanCurrentSection === 'settings' ? renderSettingsView() : (
                   <div className="p-8 flex items-center justify-center h-full text-zinc-500 italic">
                     {kanbanCurrentSection} view placeholder
                   </div>
