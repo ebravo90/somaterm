@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/core';
 
 export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' } | { type: 'file_explorer' } | { type: 'kanban' };
@@ -94,7 +95,7 @@ export interface Session {
 export interface KanbanTicket {
   id: string;
   title: string;
-  status: 'Open' | 'Ready' | 'In Progress' | 'Testing' | 'UAT' | 'Done';
+  status: 'Open' | 'Ready' | 'In Progress' | 'Blocked' | 'Testing' | 'UAT' | 'Done';
   description: string;
   type: 'Feature' | 'Bug' | 'Chore' | 'Spike';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
@@ -240,7 +241,9 @@ function normalizeUrl(rawUrl: string): string {
   }
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
   stagedContextFiles: [],
   addContextFile: (path) => set((state) => ({
     stagedContextFiles: state.stagedContextFiles.includes(path) ? state.stagedContextFiles : [...state.stagedContextFiles, path]
@@ -1005,4 +1008,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { terminals: newTerms, activeTerminalId: newActiveId };
     });
   }
+}), { 
+  name: 'somaterm-storage',
+  partialize: (state) => ({
+    isKanbanEnabled: state.isKanbanEnabled,
+    kanbanMockTickets: state.kanbanMockTickets,
+    kanbanMockCycles: state.kanbanMockCycles,
+    kanbanActiveCycleId: state.kanbanActiveCycleId,
+    kanbanCurrentSection: state.kanbanCurrentSection,
+    kanbanSelectedTicket: state.kanbanSelectedTicket,
+    kanbanTicketViewMode: state.kanbanTicketViewMode,
+    kanbanHistory: state.kanbanHistory,
+    kanbanHistoryIndex: state.kanbanHistoryIndex,
+    kanbanSearchQuery: state.kanbanSearchQuery,
+    settings: state.settings,
+    activeWidget: state.activeWidget
+  })
 }));

@@ -3,8 +3,8 @@ import { useAppStore, type KanbanTicket } from '../../store/useAppStore';
 import { DndContext, useDraggable, useDroppable, DragOverlay, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 
-const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
-const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
+const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done'];
+const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done'];
 const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
 const TYPE_OPTIONS: KanbanTicket['type'][] = ['Feature', 'Bug', 'Chore', 'Spike'];
 
@@ -32,6 +32,11 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
       <div className="flex items-center justify-between mt-1">
         <span className="text-xs font-mono text-zinc-500">{ticket.id}</span>
         <div className="flex flex-wrap gap-1">
+          {ticket.status === 'Blocked' && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-medium bg-red-500/10 text-red-400">
+              Blocked
+            </span>
+          )}
           <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
             {ticket.priority}
           </span>
@@ -59,7 +64,7 @@ const KanbanColumn = ({ colName, columnTickets, selectedTicket, onSelect }: { co
       }`}
     >
       <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0 pointer-events-none">
-        <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">{colName}</span>
+        <span className={`text-xs font-semibold uppercase tracking-wider ${colName === 'Blocked' ? 'text-red-400' : 'text-zinc-300'}`}>{colName}</span>
         <span className="text-xs text-zinc-600 font-medium bg-zinc-800/50 px-2 py-0.5 rounded-full">{columnTickets.length}</span>
       </div>
       <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[200px] h-full relative">
@@ -249,6 +254,11 @@ export const KanbanWidget: React.FC = () => {
               <div className="flex items-center justify-between mt-1">
                 <span className="text-xs font-mono text-zinc-500">{activeTicket.id}</span>
                 <div className="flex flex-wrap gap-1">
+                  {activeTicket.status === 'Blocked' && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-sm font-medium bg-red-500/10 text-red-400">
+                      Blocked
+                    </span>
+                  )}
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${activeTicket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : activeTicket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
                     {activeTicket.priority}
                   </span>
@@ -493,7 +503,7 @@ export const KanbanWidget: React.FC = () => {
                       <span className="shrink-0 font-mono text-xs text-zinc-500">{ticket.id}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-auto pt-2 border-t border-zinc-800/50">
-                      <span className="px-2 py-0.5 bg-zinc-800/80 text-zinc-300 rounded text-[10px] font-medium border border-zinc-700/50">{ticket.status}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${ticket.status === 'Blocked' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-zinc-800/80 text-zinc-300 border-zinc-700/50'}`}>{ticket.status}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
                         {ticket.priority}
                       </span>
@@ -519,7 +529,7 @@ export const KanbanWidget: React.FC = () => {
                     <span className="text-sm font-medium text-zinc-200 truncate block">{ticket.title}</span>
                   </div>
                   <div className="w-32 shrink-0">
-                    <span className="px-2 py-0.5 bg-zinc-800/80 text-zinc-300 rounded text-[10px] font-medium border border-zinc-700/50">{ticket.status}</span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${ticket.status === 'Blocked' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-zinc-800/80 text-zinc-300 border-zinc-700/50'}`}>{ticket.status}</span>
                   </div>
                   <div className="w-24 shrink-0">
                     <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400 border-red-500/20' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
