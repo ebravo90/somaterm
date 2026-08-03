@@ -35,6 +35,8 @@ export const KanbanWidget: React.FC = () => {
   const [allTicketsItemsPerPage, setAllTicketsItemsPerPage] = useState(20);
   const [allTicketsPage, setAllTicketsPage] = useState(1);
 
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
   const handleCyclesLayoutChange = (layout: 'grid' | 'list') => {
     setCyclesLayout(layout);
     setCyclesItemsPerPage(layout === 'grid' ? 10 : 20);
@@ -140,24 +142,37 @@ export const KanbanWidget: React.FC = () => {
             <div 
               key={colName} 
               className="w-72 flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-lg overflow-hidden shrink-0"
-              onDragEnter={(e) => e.preventDefault()}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const id = e.dataTransfer.getData("ticketId") || e.dataTransfer.getData("ticketid") || e.dataTransfer.getData("text/plain");
-                if (id) {
-                  updateKanbanTicket(id, { status: colName });
-                }
-              }}
             >
               <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0">
                 <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">{colName}</span>
                 <span className="text-xs text-zinc-600 font-medium bg-zinc-800/50 px-2 py-0.5 rounded-full">{columnTickets.length}</span>
               </div>
-              <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-0 relative">
+              <div 
+                className={`flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[200px] h-full relative transition-colors duration-150 ${dragOverColumn === colName ? 'bg-blue-500/10' : ''}`}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  setDragOverColumn(colName);
+                }}
+                onDragLeave={(e) => {
+                  // Only clear if we actually leave the container (not just hovering over children)
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDragOverColumn(null);
+                  }
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverColumn(null);
+                  const id = e.dataTransfer.getData("ticketId") || e.dataTransfer.getData("ticketid") || e.dataTransfer.getData("text/plain");
+                  console.log("Dropping ticket ID:", id, "into status:", colName);
+                  if (id) {
+                    updateKanbanTicket(id, { status: colName });
+                  }
+                }}
+              >
                 {columnTickets.length === 0 ? (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <span className="text-zinc-600 text-sm italic">No tasks</span>
