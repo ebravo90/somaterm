@@ -57,3 +57,9 @@ You are strictly forbidden from executing `git push` automatically after complet
 
 ## THE SPLIT-PANE RULE
 From now on, you MUST strictly adhere to this architectural rule for all current and future UI components: Always integrate new widgets, panels, or tools into the existing Split-Pane container (managed by `activeWidget` in `App.tsx`) BEFORE ever considering creating a new window, floating modal, or detached overlay. Do not create new OS-level windows or global modals unless explicitly instructed by me.
+
+### Git & Commit Hygiene
+- NEVER use `git add .` or `git commit -am` blindly.
+- Always run `git status` to review modified and untracked files before staging.
+- Only stage explicit, intended source files required for the feature or fix.
+- Never stage or commit debug logs, temporary scripts, `.txt` dumps, or local testing artifacts.

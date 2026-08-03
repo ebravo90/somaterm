@@ -6,6 +6,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+ci_*.txt
+*_dump.txt
+debug.cjs
+test-local.cjs
 
 node_modules
 dist
