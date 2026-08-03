@@ -1,10 +1,88 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore, type KanbanTicket } from '../../store/useAppStore';
+import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 
 const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
 const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'In Progress', 'Testing', 'UAT', 'Done'];
 const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
 const TYPE_OPTIONS: KanbanTicket['type'][] = ['Feature', 'Bug', 'Chore', 'Spike'];
+
+const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTicket, isSelected: boolean, onSelect: (id: string, view: 'preview') => void }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: ticket.id,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.8 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      onClick={() => onSelect(ticket.id, 'preview')}
+      className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${isSelected ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-sm font-medium text-zinc-200 line-clamp-2">{ticket.title}</span>
+      </div>
+      <div className="flex items-center justify-between mt-1">
+        <span className="text-xs font-mono text-zinc-500">{ticket.id}</span>
+        <div className="flex flex-wrap gap-1">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
+            {ticket.priority}
+          </span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-zinc-700/50 text-zinc-400 font-medium">
+            {ticket.type}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const KanbanColumn = ({ colName, columnTickets, selectedTicket, onSelect }: { colName: string, columnTickets: KanbanTicket[], selectedTicket: string | null, onSelect: (id: string, view: 'preview') => void }) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: colName,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-72 flex flex-col bg-zinc-900/50 rounded-lg overflow-hidden shrink-0 transition-all duration-200 border ${
+        isOver
+          ? 'border-blue-500 ring-2 ring-blue-500/40 bg-blue-500/10' // Highlighted drop target
+          : 'border-zinc-800/80' // Normal state
+      }`}
+    >
+      <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0 pointer-events-none">
+        <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">{colName}</span>
+        <span className="text-xs text-zinc-600 font-medium bg-zinc-800/50 px-2 py-0.5 rounded-full">{columnTickets.length}</span>
+      </div>
+      <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[200px] h-full relative">
+        {columnTickets.length === 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="text-zinc-600 text-sm italic">No tasks</span>
+          </div>
+        ) : (
+          columnTickets.map(ticket => (
+            <KanbanTicketCard 
+              key={ticket.id} 
+              ticket={ticket} 
+              isSelected={selectedTicket === ticket.id}
+              onSelect={onSelect}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
 
 export const KanbanWidget: React.FC = () => {
   const { 
@@ -34,9 +112,6 @@ export const KanbanWidget: React.FC = () => {
   const [allTicketsLayout, setAllTicketsLayout] = useState<'grid' | 'list'>('list');
   const [allTicketsItemsPerPage, setAllTicketsItemsPerPage] = useState(20);
   const [allTicketsPage, setAllTicketsPage] = useState(1);
-
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
-  const [isDraggingTicket, setIsDraggingTicket] = useState<boolean>(false);
 
   const handleCyclesLayoutChange = (layout: 'grid' | 'list') => {
     setCyclesLayout(layout);
@@ -131,95 +206,34 @@ export const KanbanWidget: React.FC = () => {
 
 
   // Board Area Content
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over) {
+      updateKanbanTicket(active.id as string, { status: over.id as KanbanTicket['status'] });
+    }
+  };
+
   const renderBoard = () => {
     // Filter tickets by active cycle
     const boardTickets = filteredTickets.filter(t => t.cycleId === kanbanActiveCycleId);
     
     return (
-      <div className="flex h-full p-6 gap-4 min-w-max">
-        {KANBAN_COLUMNS.map((colName) => {
-          const columnTickets = boardTickets.filter(t => t.status === colName);
-          return (
-            <div 
-              key={colName} 
-              className={`w-72 flex flex-col bg-zinc-900/50 rounded-lg overflow-hidden shrink-0 transition-all duration-200 border ${
-                isDraggingTicket 
-                  ? dragOverColumn === colName 
-                    ? 'border-blue-500 ring-2 ring-blue-500/40 bg-blue-500/10' // Highlighted drop target
-                    : 'border-blue-500/50 ring-1 ring-blue-500/20' // Possible drop target
-                  : 'border-zinc-800/80' // Normal state
-              }`}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                setDragOverColumn(colName);
-              }}
-              onDragLeave={(e) => {
-                // Only clear if we actually leave the container (not just hovering over children)
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                  setDragOverColumn(null);
-                }
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const id = e.dataTransfer.getData("text/plain");
-                if (id) {
-                  updateKanbanTicket(id, { status: colName });
-                }
-                setDragOverColumn(null);
-                setIsDraggingTicket(false);
-              }}
-            >
-              <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0 pointer-events-none">
-                <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">{colName}</span>
-                <span className="text-xs text-zinc-600 font-medium bg-zinc-800/50 px-2 py-0.5 rounded-full">{columnTickets.length}</span>
-              </div>
-              <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[200px] h-full relative">
-                {columnTickets.length === 0 ? (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-zinc-600 text-sm italic">No tasks</span>
-                  </div>
-                ) : (
-                  columnTickets.map(ticket => (
-                    <div 
-                      key={ticket.id}
-                      draggable
-                      onDragStart={(e) => {
-                        setIsDraggingTicket(true);
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", ticket.id);
-                      }}
-                      onDragEnd={() => {
-                        setIsDraggingTicket(false);
-                      }}
-                      onClick={() => selectKanbanTicket(ticket.id, 'preview')}
-                      className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 pointer-events-auto ${kanbanSelectedTicket === ticket.id ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'}`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-sm font-medium text-zinc-200 line-clamp-2">{ticket.title}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs font-mono text-zinc-500">{ticket.id}</span>
-                        <div className="flex flex-wrap gap-1">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                            {ticket.priority}
-                          </span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-zinc-700/50 text-zinc-400 font-medium">
-                            {ticket.type}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <DndContext onDragEnd={handleDragEnd}>
+        <div className="flex h-full p-6 gap-4 min-w-max">
+          {KANBAN_COLUMNS.map((colName) => {
+            const columnTickets = boardTickets.filter(t => t.status === colName);
+            return (
+              <KanbanColumn
+                key={colName}
+                colName={colName}
+                columnTickets={columnTickets}
+                selectedTicket={kanbanSelectedTicket}
+                onSelect={selectKanbanTicket}
+              />
+            );
+          })}
+        </div>
+      </DndContext>
     );
   };
 

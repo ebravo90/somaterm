@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 
-export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' } | { type: 'file_explorer' };
+export type WidgetType = { type: 'webview' } | { type: 'agent' } | { type: 'web_manager' } | { type: 'file_explorer' } | { type: 'kanban' };
 
 export interface TerminalSession {
   id: string;
