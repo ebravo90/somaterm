@@ -182,7 +182,7 @@ export const KanbanWidget: React.FC = () => {
                 <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">{colName}</span>
                 <span className="text-xs text-zinc-600 font-medium bg-zinc-800/50 px-2 py-0.5 rounded-full">{columnTickets.length}</span>
               </div>
-              <div className={`flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[200px] h-full relative ${isDraggingTicket ? 'pointer-events-none' : ''}`}>
+              <div className="flex-1 p-2 flex flex-col gap-2 overflow-y-auto min-h-[200px] h-full relative">
                 {columnTickets.length === 0 ? (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <span className="text-zinc-600 text-sm italic">No tasks</span>
