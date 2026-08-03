@@ -127,13 +127,13 @@ export const KanbanWidget: React.FC = () => {
 
   // Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, ticketId: string) => {
-    e.dataTransfer.setData('text/plain', ticketId);
+    e.dataTransfer.setData('ticketId', ticketId);
     e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDrop = (e: React.DragEvent, newStatus: KanbanTicket['status']) => {
     e.preventDefault();
-    const ticketId = e.dataTransfer.getData('text/plain');
+    const ticketId = e.dataTransfer.getData('ticketId');
     if (ticketId) {
       updateKanbanTicket(ticketId, { status: newStatus });
     }
@@ -157,10 +157,7 @@ export const KanbanWidget: React.FC = () => {
             <div 
               key={colName} 
               className="w-72 flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-lg overflow-hidden shrink-0"
-              onDragOver={(e) => {
-                e.preventDefault();
-                handleDragOver(e);
-              }}
+              onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => handleDrop(e, colName)}
             >
               <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0">
