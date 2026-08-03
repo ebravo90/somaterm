@@ -125,24 +125,7 @@ export const KanbanWidget: React.FC = () => {
     setShowCreateModal(false);
   };
 
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, ticketId: string) => {
-    e.dataTransfer.setData('text/plain', ticketId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
 
-  const handleDrop = (e: React.DragEvent, newStatus: KanbanTicket['status']) => {
-    e.preventDefault();
-    const ticketId = e.dataTransfer.getData('text/plain');
-    if (ticketId) {
-      updateKanbanTicket(ticketId, { status: newStatus });
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
 
   // Board Area Content
   const renderBoard = () => {
@@ -157,9 +140,14 @@ export const KanbanWidget: React.FC = () => {
             <div 
               key={colName} 
               className="w-72 flex flex-col bg-zinc-900/50 border border-zinc-800/80 rounded-lg overflow-hidden shrink-0"
-              onDragEnter={(e) => e.preventDefault()}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, colName)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const id = e.dataTransfer.getData("ticketId");
+                if (id) {
+                  updateKanbanTicket(id, { status: colName });
+                }
+              }}
             >
               <div className="p-3 border-b border-zinc-800/80 bg-zinc-900/80 flex items-center justify-between shrink-0">
                 <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">{colName}</span>
@@ -175,7 +163,9 @@ export const KanbanWidget: React.FC = () => {
                     <div 
                       key={ticket.id}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, ticket.id)}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("ticketId", ticket.id);
+                      }}
                       onClick={() => selectKanbanTicket(ticket.id, 'preview')}
                       className={`p-3 bg-zinc-800/40 hover:bg-zinc-800/70 border rounded-md cursor-pointer transition-all shadow-sm flex flex-col gap-2 ${kanbanSelectedTicket === ticket.id ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-zinc-700/50 hover:border-zinc-600'}`}
                     >
