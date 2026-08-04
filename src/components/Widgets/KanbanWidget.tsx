@@ -1,37 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useDraggable, useDroppable, DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { useAppStore, type KanbanTicket, type TicketRelation } from '../../store/useAppStore';
-import { DndContext, useDraggable, useDroppable, DragOverlay, useSensor, useSensors, PointerSensor, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
+import { isValidTransition } from '../../utils/ticketValidation';
+import { filterTickets } from '../../utils/ticketFilters';
 
 const KANBAN_COLUMNS: KanbanTicket['status'][] = ['Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done'];
 const STATUS_OPTIONS: KanbanTicket['status'][] = ['Open', 'Ready', 'Blocked', 'In Progress', 'Testing', 'UAT', 'Done', 'Canceled'];
 const PRIORITY_OPTIONS: KanbanTicket['priority'][] = ['Low', 'Medium', 'High', 'Critical'];
 const TYPE_OPTIONS: KanbanTicket['type'][] = ['Story', 'Task', 'Bug', 'Spike', 'Cycle'];
 
-const isValidTransition = (ticket: KanbanTicket, newStatus: KanbanTicket['status']): boolean => {
-  if (newStatus === 'Canceled') return true;
-  if (newStatus === ticket.status) return true; // Same state is valid
-
-  // New Rule: CANNOT transition past Open without an assignee
-  if (newStatus !== 'Open' && (!ticket.assignee || ticket.assignee.trim() === '')) {
-    return false;
-  }
-
-  if (newStatus === 'Done') {
-    // Rule 2
-    if (ticket.status === 'Open' || ticket.status === 'Ready') return false;
-
-    // Rule 3
-    if ((ticket.type === 'Story' || ticket.type === 'Bug') && ticket.status !== 'UAT') {
-      return false;
-    }
-  }
-
-  return true;
-};
 
 const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTicket, isSelected: boolean, onSelect: (id: string, view: 'preview') => void }) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: ticket.id,
   });
 
@@ -439,21 +419,13 @@ export const KanbanWidget: React.FC = () => {
   const canGoForward = kanbanHistoryIndex < kanbanHistory.length - 1;
 
   // Global Filtered Tickets
-  const filteredTickets = kanbanMockTickets.filter(t => {
-    const matchesSearch = !kanbanSearchQuery || 
-      t.title.toLowerCase().includes(kanbanSearchQuery.toLowerCase()) || 
-      t.description.toLowerCase().includes(kanbanSearchQuery.toLowerCase());
-    
-    // For Board view, we might not want these dropdown filters to apply, but the requirement 
-    // says "Update the render list logic: The displayed tickets must be filtered through BOTH 
-    // the text search AND all active dropdown/chip filters".
-    const matchesPriority = filterPriority === 'All' || t.priority === filterPriority;
-    const matchesType = filterType === 'All' || t.type === filterType;
-    const matchesAssignee = filterAssignee === 'All' || (filterAssignee === 'Unassigned' ? !t.assignee : t.assignee === filterAssignee);
-    const matchesReporter = filterReporter === 'All' || t.reporter === filterReporter;
-    const matchesCycleId = filterCycleId === 'All' || (filterCycleId === 'None' ? !t.cycleId : t.cycleId === filterCycleId);
-
-    return matchesSearch && matchesPriority && matchesType && matchesAssignee && matchesReporter && matchesCycleId;
+  const filteredTickets = filterTickets(kanbanMockTickets, {
+    searchQuery: kanbanSearchQuery,
+    priority: filterPriority,
+    type: filterType,
+    assignee: filterAssignee,
+    reporter: filterReporter,
+    cycleId: filterCycleId
   });
 
   // Reset edit state when selected ticket changes
@@ -498,18 +470,21 @@ export const KanbanWidget: React.FC = () => {
   const handleCreateTicket = () => {
     if (!createTitle.trim()) return;
     
-    addKanbanTicket({
+    const newTicket: Omit<KanbanTicket, 'id'> = {
       title: createTitle,
       description: createDescription,
-      acc: createType === 'Cycle' || createType === 'Spike' ? undefined : createAcc,
-      dod: createType === 'Cycle' ? undefined : createDod,
+      acc: createAcc || undefined,
+      dod: createDod || undefined,
       status: createStatus,
-      priority: createPriority,
       type: createType,
+      priority: createPriority,
       cycleId: createCycleId || undefined,
       assignee: createAssignee || undefined,
-      reporter: createReporter || 'Human Orchestrator'
-    });
+      reporter: createReporter || 'Human Orchestrator',
+      history: []
+    };
+    
+    addKanbanTicket(newTicket);
 
     // Reset and close
     setCreateTitle('');

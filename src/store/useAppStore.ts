@@ -251,7 +251,6 @@ interface AppState {
   linkTickets: (sourceId: string, targetId: string, relation: TicketRelation) => void;
   kanbanSearchQuery: string;
   setKanbanSearchQuery: (query: string) => void;
-  setKanbanSearchQuery: (query: string) => void;
   userAvatar: string;
   setUserAvatar: (avatarData: string) => void;
 
@@ -401,41 +400,40 @@ export const useAppStore = create<AppState>()(
   }),
   
   addComment: (ticketId, content, author, role) => set((state) => {
-    const newComment: TicketComment = {
-      id: `comment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-      author,
-      role,
-      content
+    const ticket = state.kanbanMockTickets.find(t => t.id === ticketId);
+    if (!ticket) return {};
+    return {
+      kanbanMockTickets: state.kanbanMockTickets.map(t => 
+        t.id === ticketId ? { 
+          ...t, 
+          comments: [...(t.comments || []), {
+            id: `comment-${Date.now()}`,
+            content,
+            author,
+            role,
+            timestamp: Date.now()
+          }]
+        } : t
+      )
     };
+  }),
+
+  linkTickets: (sourceId, targetId, relation) => set((state) => {
+    const inverseRelation = relation === 'Blocks' ? 'Blocked by' : relation === 'Blocked by' ? 'Blocks' : 'Relates to';
     return {
       kanbanMockTickets: state.kanbanMockTickets.map(t => {
-        if (t.id === ticketId) {
-          const newComments = [...(t.comments || []), { id: `c-${Date.now()}`, timestamp: Date.now(), author, role, content }];
-          return { ...t, comments: newComments };
+        if (t.id === sourceId) {
+          const newLink: TicketLink = { targetTicketId: targetId, relation };
+          return { ...t, links: [...(t.links || []), newLink] };
+        }
+        if (t.id === targetId) {
+          const newLink: TicketLink = { targetTicketId: sourceId, relation: inverseRelation };
+          return { ...t, links: [...(t.links || []), newLink] };
         }
         return t;
       })
     };
   }),
-
-  linkTickets: (sourceId, targetId, relation) => 
-    set((state) => {
-      const inverseRelation = relation === 'Blocks' ? 'Blocked by' : relation === 'Blocked by' ? 'Blocks' : 'Relates to';
-      return {
-        kanbanMockTickets: state.kanbanMockTickets.map(t => {
-          if (t.id === sourceId) {
-            const newLinks = [...(t.links || []), { targetTicketId: targetId, relation }];
-            return { ...t, links: newLinks };
-          }
-          if (t.id === targetId) {
-            const newLinks = [...(t.links || []), { targetTicketId: sourceId, relation: inverseRelation }];
-            return { ...t, links: newLinks };
-          }
-          return t;
-        })
-      };
-    }),
   
   navigateKanbanBack: () => set((state) => {
     if (state.kanbanHistoryIndex > 0) {
@@ -829,11 +827,10 @@ export const useAppStore = create<AppState>()(
 
     const userMessage: ChatMessage = { role: 'user', content: input, attachments: attachmentNames };
     const currentSession = state.sessions.find(s => s.id === sessionId);
-    const newMessages = [...(currentSession?.messages || []), userMessage];
     
     const networkUserMessage = { role: 'user', content: finalInput };
     const networkMessages = [...(currentSession?.messages || []).map(m => ({ role: m.role, content: m.content })), networkUserMessage];
-
+    
     state.setActiveSession(sessionId);
     state.addMessageToActiveSession(userMessage);
     

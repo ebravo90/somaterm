@@ -98,7 +98,7 @@ function FileTreeItem({ node, level, onUpdateNode, onContextMenuNode, onSelectNo
 }
 
 export function FileExplorerWidget() {
-  const { closeWidget, addContextFile, removeContextFile, stagedContextFiles, setActiveWidget, createSession, setActiveSession, selectedAgentId, activeSessionId, isContextPickerMode, setContextPickerMode } = useAppStore();
+  const { closeWidget, addContextFile, stagedContextFiles, setActiveWidget, createSession, setActiveSession, selectedAgentId, isContextPickerMode, setContextPickerMode } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const [showSubMenu, setShowSubMenu] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);

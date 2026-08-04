@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import type { AgentProfile, Session } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -730,8 +729,6 @@ export function AgentWidget() {
     }
   }, [currentMessages, isScrolledUp]);
 
-
-
   const store = useAppStore();
   const handleSend = async () => {
     if (!selectedAgentId) return;
@@ -767,20 +764,7 @@ export function AgentWidget() {
     });
   };
 
-  const handleAddFiles = async () => {
-    try {
-      const selected = await open({
-        multiple: true,
-      });
-      if (Array.isArray(selected)) {
-        selected.forEach(path => store.addContextFile(path));
-      } else if (selected) {
-        store.addContextFile(selected);
-      }
-    } catch (e) {
-      console.error("Failed to open file dialog", e);
-    }
-  };
+
 
 
 
