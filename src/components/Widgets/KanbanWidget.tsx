@@ -118,7 +118,7 @@ const InlineStatusBadge = ({ ticket, isFullView }: { ticket: KanbanTicket, isFul
   );
 };
 
-const InlineAssigneeDropdown = ({ ticket, isFullView }: { ticket: KanbanTicket, isFullView?: boolean }) => {
+const InlineAssigneeDropdown = ({ ticket, isFullView, isPreviewView }: { ticket: KanbanTicket, isFullView?: boolean, isPreviewView?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { updateKanbanTicket, agents, userAvatar } = useAppStore();
 
@@ -133,27 +133,34 @@ const InlineAssigneeDropdown = ({ ticket, isFullView }: { ticket: KanbanTicket, 
 
   const currentActor = availableActorsList.find(a => a.id === ticket.assignee);
 
-  if (isFullView) {
+  if (isFullView || isPreviewView) {
     return (
       <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
         <div 
-          className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-2 cursor-pointer hover:border-zinc-700 transition-colors"
+          className={
+            isPreviewView 
+              ? "px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50 flex items-center gap-1.5 cursor-pointer hover:border-zinc-600 transition-colors h-full"
+              : "px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-2 cursor-pointer hover:border-zinc-700 transition-colors"
+          }
           onClick={() => setIsOpen(!isOpen)}
         >
-          <span>Assignee:</span>
+          {!isPreviewView && <span>Assignee:</span>}
           {currentActor ? (
-            <div className="flex items-center gap-1.5 text-zinc-200">
-              <div className="w-4 h-4 rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-700">
+            <div className={`flex items-center ${isPreviewView ? 'gap-1' : 'gap-1.5'} text-zinc-200`}>
+              <div className={`${isPreviewView ? 'w-3.5 h-3.5' : 'w-4 h-4'} rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-700`}>
                 {currentActor.avatar ? (
                   <img src={currentActor.avatar} alt={currentActor.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[8px] font-medium text-zinc-300">{currentActor.name.substring(0, 2).toUpperCase()}</span>
+                  <span className={`${isPreviewView ? 'text-[7px]' : 'text-[8px]'} font-medium text-zinc-300`}>{currentActor.name.substring(0, 2).toUpperCase()}</span>
                 )}
               </div>
-              {currentActor.name}
+              <span>{currentActor.name}</span>
             </div>
           ) : (
-            <span className="text-zinc-500">Unassigned</span>
+            <div className={`flex items-center ${isPreviewView ? 'gap-1' : 'gap-1.5'} text-zinc-500`}>
+              {isPreviewView && <svg className="w-3 h-3 border-dashed" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path></svg>}
+              <span>Unassigned</span>
+            </div>
           )}
           <svg className="w-3 h-3 ml-0.5 text-zinc-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
@@ -1650,6 +1657,7 @@ export const KanbanWidget: React.FC = () => {
                         <InlineStatusBadge ticket={selectedTicketObj} />
                         <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.type}</span>
                         <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.priority}</span>
+                        <InlineAssigneeDropdown ticket={selectedTicketObj} isPreviewView={true} />
                       </div>
                       <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{selectedTicketObj.description}</p>
                       {selectedTicketObj.acc && (
