@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore, type KanbanTicket, type TicketRelation } from '../../store/useAppStore';
 import { DndContext, useDraggable, useDroppable, DragOverlay, useSensor, useSensors, PointerSensor, type DragStartEvent, type DragEndEvent } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -347,6 +347,20 @@ export const KanbanWidget: React.FC = () => {
   const availableActors = ['Human Orchestrator', ...agents.filter(a => a.status === 'online').map(a => a.displayName)];
 
   const [isCycleDescriptionExpanded, setIsCycleDescriptionExpanded] = useState(false);
+  const cycleDescriptionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (cycleDescriptionRef.current && !cycleDescriptionRef.current.contains(event.target as Node)) {
+        setIsCycleDescriptionExpanded(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const [cyclesLayout, setCyclesLayout] = useState<'grid' | 'list'>('grid');
   const [cyclesItemsPerPage, setCyclesItemsPerPage] = useState(10);
   const [cyclesPage, setCyclesPage] = useState(1);
@@ -1169,15 +1183,6 @@ export const KanbanWidget: React.FC = () => {
                   <>
                     <span className="text-zinc-500">Feature:</span> 
                     {activeCycleObj.name}
-                    {activeCycleObj.description && (
-                      <button 
-                        onClick={() => setIsCycleDescriptionExpanded(!isCycleDescriptionExpanded)}
-                        className="ml-2 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none flex items-center gap-1 text-xs font-normal bg-zinc-800/50 hover:bg-zinc-800 px-1.5 py-0.5 rounded"
-                      >
-                        {isCycleDescriptionExpanded ? 'Hide details' : 'Show details'}
-                        <svg className={`w-3 h-3 transition-transform duration-200 ${isCycleDescriptionExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                      </button>
-                    )}
                   </>
                 ) : kanbanCurrentSection === 'cycles' ? (
                 'All Cycles'
@@ -1220,12 +1225,28 @@ export const KanbanWidget: React.FC = () => {
           </div>
         </div>
 
-          {/* Expanded Description Container */}
-          {kanbanCurrentSection === 'board' && activeCycleObj?.description && isCycleDescriptionExpanded && (
-            <div className="px-6 pb-4 pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-md p-3 text-sm text-zinc-300 leading-relaxed shadow-inner">
-                {activeCycleObj.description}
+          {/* Divider Description Toggle */}
+          {kanbanCurrentSection === 'board' && activeCycleObj?.description && (
+            <div className="relative px-6 w-full" ref={cycleDescriptionRef}>
+              <div className="flex items-center w-full my-1">
+                <div className="flex-grow border-t border-zinc-800/60"></div>
+                <button 
+                  onClick={() => setIsCycleDescriptionExpanded(!isCycleDescriptionExpanded)}
+                  className="mx-3 text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none flex items-center gap-1 font-medium select-none"
+                >
+                  <svg className={`w-3 h-3 transition-transform duration-200 ${isCycleDescriptionExpanded ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                  Description
+                </button>
+                <div className="flex-grow border-t border-zinc-800/60"></div>
               </div>
+              
+              {isCycleDescriptionExpanded && (
+                <div className="pb-3 pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="text-sm text-zinc-400 leading-relaxed">
+                    {activeCycleObj.description}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
