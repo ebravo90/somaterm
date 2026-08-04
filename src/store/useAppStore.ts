@@ -1130,7 +1130,6 @@ export const useAppStore = create<AppState>()(
     kanbanHistory: state.kanbanHistory,
     kanbanHistoryIndex: state.kanbanHistoryIndex,
     kanbanSearchQuery: state.kanbanSearchQuery,
-    settings: state.settings,
-    activeWidget: state.activeWidget
+    settings: state.settings
   })
 }));
