@@ -304,10 +304,10 @@ export const useAppStore = create<AppState>()(
   kanbanActiveCycleId: 'CYCLE-1',
   
   kanbanMockTickets: [
-    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Story', priority: 'High', cycleId: 'CYCLE-1', history: [] },
-    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Task', priority: 'Medium', cycleId: 'CYCLE-1', history: [] },
-    { id: 'SOMA-3', title: 'Fix Header Alignment', status: 'Blocked', description: 'The header buttons are slightly off-center on Windows.', type: 'Bug', priority: 'Low', history: [] },
-    { id: 'SOMA-4', title: 'Deploy Initial MVP', status: 'Done', description: 'Ship the first version of the internal board.', type: 'Cycle', priority: 'Critical', cycleId: 'CYCLE-3', history: [] },
+    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Story', priority: 'High', cycleId: 'CYCLE-1', assignee: 'Human Orchestrator', reporter: 'Human Orchestrator', history: [] },
+    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Task', priority: 'Medium', cycleId: 'CYCLE-1', assignee: 'Human Orchestrator', reporter: 'Human Orchestrator', history: [] },
+    { id: 'SOMA-3', title: 'Fix Header Alignment', status: 'Blocked', description: 'The header buttons are slightly off-center on Windows.', type: 'Bug', priority: 'Low', cycleId: 'CYCLE-2', assignee: 'Human Orchestrator', reporter: 'Human Orchestrator', history: [] },
+    { id: 'SOMA-4', title: 'Research new AI model', status: 'Open', description: 'Check out Llama 3 for local inference.', type: 'Spike', priority: 'Critical', cycleId: 'CYCLE-1', assignee: undefined, reporter: 'Human Orchestrator', history: [] },
   ],
   setUserAvatar: (avatarData) => set({ userAvatar: avatarData }),
   

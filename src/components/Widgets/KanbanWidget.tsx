@@ -31,6 +31,9 @@ const isValidTransition = (ticket: KanbanTicket, newStatus: KanbanTicket['status
 };
 
 const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTicket, isSelected: boolean, onSelect: (id: string, view: 'preview') => void }) => {
+  const { kanbanMockCycles } = useAppStore();
+  const cycle = ticket.cycleId ? kanbanMockCycles.find(c => c.id === ticket.cycleId) : null;
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: ticket.id,
   });
@@ -59,6 +62,12 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
           <span className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium ${ticket.priority === 'Critical' ? 'bg-red-500/10 text-red-400' : ticket.priority === 'High' ? 'bg-orange-500/10 text-orange-400' : 'bg-blue-500/10 text-blue-400'}`}>
             {ticket.priority}
           </span>
+          {cycle && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-purple-500/10 text-purple-400 font-medium flex items-center gap-1 border border-purple-500/20">
+              <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+              {cycle.name}
+            </span>
+          )}
           <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-zinc-700/50 text-zinc-400 font-medium">
             {ticket.type}
           </span>
@@ -1657,6 +1666,12 @@ export const KanbanWidget: React.FC = () => {
                         <InlineStatusBadge ticket={selectedTicketObj} />
                         <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.type}</span>
                         <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded text-xs font-medium border border-zinc-700/50">{selectedTicketObj.priority}</span>
+                        {selectedTicketObj.cycleId && kanbanMockCycles.find(c => c.id === selectedTicketObj.cycleId) && (
+                          <span className="px-2 py-0.5 bg-purple-500/10 text-purple-400 rounded text-xs font-medium border border-purple-500/20 flex items-center gap-1.5">
+                            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            {kanbanMockCycles.find(c => c.id === selectedTicketObj.cycleId)?.name}
+                          </span>
+                        )}
                         <InlineAssigneeDropdown ticket={selectedTicketObj} isPreviewView={true} />
                       </div>
                       <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{selectedTicketObj.description}</p>
