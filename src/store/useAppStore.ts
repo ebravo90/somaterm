@@ -129,6 +129,8 @@ export interface KanbanTicket {
   history: TicketHistoryEvent[];
   comments?: TicketComment[];
   links?: TicketLink[];
+  reporter?: string;
+  assignee?: string;
 }
 
 export interface KanbanCycle {
@@ -248,8 +250,10 @@ interface AppState {
   linkTickets: (sourceId: string, targetId: string, relation: TicketRelation) => void;
   kanbanSearchQuery: string;
   setKanbanSearchQuery: (query: string) => void;
+  setKanbanSearchQuery: (query: string) => void;
   userAvatar: string;
   setUserAvatar: (avatarData: string) => void;
+  availableActors: string[];
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -315,6 +319,7 @@ export const useAppStore = create<AppState>()(
   kanbanHistoryIndex: 0,
   kanbanSearchQuery: '',
   userAvatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Felix&backgroundColor=b6e3f4,c0aede,d1d4f9',
+  availableActors: ['Human Orchestrator', 'Agent Qwen', 'Agent Gemini'],
   
   setKanbanSection: (section) => set((state) => {
     const newState: KanbanNavState = { section, selectedTicket: null, viewMode: null };
@@ -386,7 +391,8 @@ export const useAppStore = create<AppState>()(
         oldValue: '',
         newValue: 'Ticket Created'
       }],
-      comments: []
+      comments: [],
+      reporter: ticket.reporter || 'Human Orchestrator'
     };
     return { 
       kanbanMockTickets: [newTicket, ...state.kanbanMockTickets] 

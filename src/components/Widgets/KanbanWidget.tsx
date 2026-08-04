@@ -45,6 +45,11 @@ const KanbanTicketCard = ({ ticket, isSelected, onSelect }: { ticket: KanbanTick
     >
       <div className="flex items-start justify-between gap-2">
         <span className={`text-sm font-medium text-zinc-200 line-clamp-2 ${ticket.status === 'Canceled' ? 'line-through text-zinc-400' : ''}`}>{ticket.title}</span>
+        {ticket.assignee && (
+          <div className="w-5 h-5 rounded-full bg-zinc-700 flex items-center justify-center text-[9px] font-medium text-zinc-300 shrink-0 border border-zinc-600" title={`Assignee: ${ticket.assignee}`}>
+            {ticket.assignee.substring(0, 2).toUpperCase()}
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-between mt-1">
         <span className="text-xs font-mono text-zinc-500">{ticket.id}</span>
@@ -171,7 +176,8 @@ export const KanbanWidget: React.FC = () => {
     kanbanSearchQuery,
     setKanbanSearchQuery,
     userAvatar,
-    setUserAvatar
+    setUserAvatar,
+    availableActors
   } = useAppStore();
 
   const [cyclesLayout, setCyclesLayout] = useState<'grid' | 'list'>('grid');
@@ -204,6 +210,8 @@ export const KanbanWidget: React.FC = () => {
   const [editPriority, setEditPriority] = useState<KanbanTicket['priority']>('Medium');
   const [editType, setEditType] = useState<KanbanTicket['type']>('Story');
   const [editCycleId, setEditCycleId] = useState<string>('');
+  const [editAssignee, setEditAssignee] = useState<string>('');
+  const [editReporter, setEditReporter] = useState<string>('Human Orchestrator');
 
   const [historyLimit, setHistoryLimit] = useState(5);
 
@@ -233,6 +241,8 @@ export const KanbanWidget: React.FC = () => {
   const [createPriority, setCreatePriority] = useState<KanbanTicket['priority']>('Medium');
   const [createType, setCreateType] = useState<KanbanTicket['type']>('Story');
   const [createCycleId, setCreateCycleId] = useState<string>('');
+  const [createAssignee, setCreateAssignee] = useState<string>('');
+  const [createReporter, setCreateReporter] = useState<string>('Human Orchestrator');
 
   const selectedTicketObj = kanbanSelectedTicket ? kanbanMockTickets.find(t => t.id === kanbanSelectedTicket) : null;
   const activeCycleObj = kanbanActiveCycleId ? kanbanMockCycles.find(c => c.id === kanbanActiveCycleId) : null;
@@ -264,7 +274,9 @@ export const KanbanWidget: React.FC = () => {
         status: editStatus,
         priority: editPriority,
         type: editType,
-        cycleId: editCycleId || undefined
+        cycleId: editCycleId || undefined,
+        assignee: editAssignee || undefined,
+        reporter: editReporter || 'Human Orchestrator'
       });
       setIsEditing(false);
     } else {
@@ -277,6 +289,8 @@ export const KanbanWidget: React.FC = () => {
       setEditPriority(selectedTicketObj.priority);
       setEditType(selectedTicketObj.type);
       setEditCycleId(selectedTicketObj.cycleId || '');
+      setEditAssignee(selectedTicketObj.assignee || '');
+      setEditReporter(selectedTicketObj.reporter || 'Human Orchestrator');
       setIsEditing(true);
     }
   };
@@ -292,7 +306,9 @@ export const KanbanWidget: React.FC = () => {
       status: createStatus,
       priority: createPriority,
       type: createType,
-      cycleId: createCycleId || undefined
+      cycleId: createCycleId || undefined,
+      assignee: createAssignee || undefined,
+      reporter: createReporter || 'Human Orchestrator'
     });
 
     // Reset and close
@@ -304,6 +320,8 @@ export const KanbanWidget: React.FC = () => {
     setCreatePriority('Medium');
     setCreateType('Story');
     setCreateCycleId('');
+    setCreateAssignee('');
+    setCreateReporter('Human Orchestrator');
     setShowCreateModal(false);
   };
 
@@ -809,6 +827,29 @@ export const KanbanWidget: React.FC = () => {
                   </select>
                 </div>
               </div>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Reporter</label>
+                  <select 
+                    value={createReporter}
+                    onChange={(e) => setCreateReporter(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                    {availableActors?.map(actor => <option key={actor} value={actor}>{actor}</option>)}
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Assignee</label>
+                  <select 
+                    value={createAssignee}
+                    onChange={(e) => setCreateAssignee(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
+                  >
+                    <option value="">Unassigned</option>
+                    {availableActors?.map(actor => <option key={actor} value={actor}>{actor}</option>)}
+                  </select>
+                </div>
+              </div>
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Description</label>
                 <textarea 
@@ -1071,6 +1112,21 @@ export const KanbanWidget: React.FC = () => {
                     >
                       {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
+                    <select 
+                      value={editReporter}
+                      onChange={(e) => setEditReporter(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
+                    >
+                      {availableActors?.map(actor => <option key={actor} value={actor}>{actor}</option>)}
+                    </select>
+                    <select 
+                      value={editAssignee}
+                      onChange={(e) => setEditAssignee(e.target.value)}
+                      className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="">Unassigned</option>
+                      {availableActors?.map(actor => <option key={actor} value={actor}>{actor}</option>)}
+                    </select>
                   </div>
                 </div>
               ) : (
@@ -1082,6 +1138,12 @@ export const KanbanWidget: React.FC = () => {
                     </span>
                     <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-1.5">
                       Priority: <span className="text-zinc-200">{selectedTicketObj.priority}</span>
+                    </span>
+                    <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-1.5">
+                      Reporter: <span className="text-zinc-200">{selectedTicketObj.reporter || 'Unknown'}</span>
+                    </span>
+                    <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded text-xs font-medium flex items-center gap-1.5">
+                      Assignee: <span className="text-zinc-200">{selectedTicketObj.assignee || 'Unassigned'}</span>
                     </span>
                   </div>
                 </>
