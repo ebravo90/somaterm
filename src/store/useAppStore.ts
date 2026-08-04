@@ -138,6 +138,7 @@ export interface KanbanCycle {
   name: string;
   status: 'Active' | 'On Hold' | 'Completed';
   targetDate?: string;
+  description?: string;
 }
 
 export interface KanbanNavState {
@@ -297,7 +298,7 @@ export const useAppStore = create<AppState>()(
   toggleKanban: (enabled: boolean) => set({ isKanbanEnabled: enabled }),
   
   kanbanMockCycles: [
-    { id: 'CYCLE-1', name: 'Somaterm MVP', status: 'Active', targetDate: '2026-08-15' },
+    { id: 'CYCLE-1', name: 'Somaterm MVP', status: 'Active', targetDate: '2026-08-15', description: 'This is the initial Minimum Viable Product for Somaterm. It includes the foundational Kanban board, AI agent orchestration framework, and core CLI tools.' },
     { id: 'CYCLE-2', name: 'Phase 2: IDE Features', status: 'On Hold', targetDate: '2026-09-01' },
     { id: 'CYCLE-3', name: 'Foundation Polish', status: 'Completed', targetDate: '2026-07-30' },
   ],

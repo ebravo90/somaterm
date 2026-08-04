@@ -346,6 +346,7 @@ export const KanbanWidget: React.FC = () => {
 
   const availableActors = ['Human Orchestrator', ...agents.filter(a => a.status === 'online').map(a => a.displayName)];
 
+  const [isCycleDescriptionExpanded, setIsCycleDescriptionExpanded] = useState(false);
   const [cyclesLayout, setCyclesLayout] = useState<'grid' | 'list'>('grid');
   const [cyclesItemsPerPage, setCyclesItemsPerPage] = useState(10);
   const [cyclesPage, setCyclesPage] = useState(1);
@@ -1160,15 +1161,25 @@ export const KanbanWidget: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden relative">
         
         {/* Header */}
-        <div className="h-14 flex items-center justify-between px-6 border-b border-zinc-800 shrink-0 bg-zinc-950/50 z-10">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col border-b border-zinc-800 shrink-0 bg-zinc-950/50 z-10">
+          <div className="h-14 flex items-center justify-between px-6">
+            <div className="flex items-center gap-4">
             <span className="text-zinc-200 font-medium text-sm flex items-center gap-2">
-              {kanbanCurrentSection === 'board' && activeCycleObj ? (
-                <>
-                  <span className="text-zinc-500">Feature:</span> 
-                  {activeCycleObj.name}
-                </>
-              ) : kanbanCurrentSection === 'cycles' ? (
+                {kanbanCurrentSection === 'board' && activeCycleObj ? (
+                  <>
+                    <span className="text-zinc-500">Feature:</span> 
+                    {activeCycleObj.name}
+                    {activeCycleObj.description && (
+                      <button 
+                        onClick={() => setIsCycleDescriptionExpanded(!isCycleDescriptionExpanded)}
+                        className="ml-2 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none flex items-center gap-1 text-xs font-normal bg-zinc-800/50 hover:bg-zinc-800 px-1.5 py-0.5 rounded"
+                      >
+                        {isCycleDescriptionExpanded ? 'Hide details' : 'Show details'}
+                        <svg className={`w-3 h-3 transition-transform duration-200 ${isCycleDescriptionExpanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                      </button>
+                    )}
+                  </>
+                ) : kanbanCurrentSection === 'cycles' ? (
                 'All Cycles'
               ) : (
                 <span className="capitalize">{kanbanCurrentSection}</span>
@@ -1207,6 +1218,16 @@ export const KanbanWidget: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+
+          {/* Expanded Description Container */}
+          {kanbanCurrentSection === 'board' && activeCycleObj?.description && isCycleDescriptionExpanded && (
+            <div className="px-6 pb-4 pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-md p-3 text-sm text-zinc-300 leading-relaxed shadow-inner">
+                {activeCycleObj.description}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Content Body */}
