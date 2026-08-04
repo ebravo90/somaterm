@@ -253,7 +253,7 @@ interface AppState {
   setKanbanSearchQuery: (query: string) => void;
   userAvatar: string;
   setUserAvatar: (avatarData: string) => void;
-  availableActors: string[];
+
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -319,7 +319,7 @@ export const useAppStore = create<AppState>()(
   kanbanHistoryIndex: 0,
   kanbanSearchQuery: '',
   userAvatar: 'https://api.dicebear.com/9.x/notionists/svg?seed=Felix&backgroundColor=b6e3f4,c0aede,d1d4f9',
-  availableActors: ['Human Orchestrator', 'Agent Qwen', 'Agent Gemini'],
+
   
   setKanbanSection: (section) => set((state) => {
     const newState: KanbanNavState = { section, selectedTicket: null, viewMode: null };

@@ -9,10 +9,20 @@ describe('Ticket Reporter and Assignee Tests', () => {
         const root = await $('#root');
         await root.waitForExist({ timeout: 15000 });
 
-        // 1. Enable Kanban widget via store
+        // 1. Enable Kanban widget via store and add mock online agent
         await browser.execute(() => {
             (window as any).__store.getState().toggleKanban?.(true);
             (window as any).__store.getState().setActiveWidget({ type: 'kanban' });
+            (window as any).__store.getState().setAgents([
+                {
+                    id: 'agent-1',
+                    displayName: 'Local Llama 3',
+                    modelName: 'llama3',
+                    endpoint: 'http://localhost',
+                    status: 'online',
+                    type: 'local'
+                }
+            ]);
         });
         
         // 2. Create a ticket programmatically with reporter and assignee
@@ -23,8 +33,8 @@ describe('Ticket Reporter and Assignee Tests', () => {
                 status: 'Open',
                 priority: 'High',
                 type: 'Bug',
-                reporter: 'Agent Qwen',
-                assignee: 'Agent Gemini'
+                reporter: 'Human Orchestrator',
+                assignee: 'Local Llama 3'
             });
         });
 
@@ -43,7 +53,7 @@ describe('Ticket Reporter and Assignee Tests', () => {
         await browser.waitUntil(
             async () => {
                 const text = await body.getText();
-                return text.includes('Agent Qwen') && text.includes('Agent Gemini');
+                return text.includes('Human Orchestrator') && text.includes('Local Llama 3');
             },
             { timeout: 5000, timeoutMsg: 'Reporter and/or Assignee did not appear in the full view' }
         );
@@ -51,15 +61,15 @@ describe('Ticket Reporter and Assignee Tests', () => {
         // 5. Test updating them
         await browser.execute((id) => {
             (window as any).__store.getState().updateKanbanTicket(id, {
-                reporter: 'Human Orchestrator',
-                assignee: 'Agent Qwen'
+                reporter: 'Local Llama 3',
+                assignee: 'Human Orchestrator'
             });
         }, ticketId);
 
         await browser.waitUntil(
             async () => {
                 const text = await body.getText();
-                return text.includes('Human Orchestrator') && text.includes('Agent Qwen');
+                return text.includes('Local Llama 3') && text.includes('Human Orchestrator');
             },
             { timeout: 5000, timeoutMsg: 'Reporter and/or Assignee did not update correctly' }
         );
