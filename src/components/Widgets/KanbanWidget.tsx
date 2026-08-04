@@ -362,6 +362,21 @@ export const KanbanWidget: React.FC = () => {
   const [allTicketsItemsPerPage, setAllTicketsItemsPerPage] = useState(20);
   const [allTicketsPage, setAllTicketsPage] = useState(1);
 
+  const [filterPriority, setFilterPriority] = useState<string>('All');
+  const [filterType, setFilterType] = useState<string>('All');
+  const [filterAssignee, setFilterAssignee] = useState<string>('All');
+  const [filterReporter, setFilterReporter] = useState<string>('All');
+  const [filterCycleId, setFilterCycleId] = useState<string>('All');
+
+  const hasActiveFilters = filterPriority !== 'All' || filterType !== 'All' || filterAssignee !== 'All' || filterReporter !== 'All' || filterCycleId !== 'All';
+  const clearFilters = () => {
+    setFilterPriority('All');
+    setFilterType('All');
+    setFilterAssignee('All');
+    setFilterReporter('All');
+    setFilterCycleId('All');
+  };
+
   const handleCyclesLayoutChange = (layout: 'grid' | 'list') => {
     setCyclesLayout(layout);
     setCyclesItemsPerPage(layout === 'grid' ? 10 : 20);
@@ -424,11 +439,22 @@ export const KanbanWidget: React.FC = () => {
   const canGoForward = kanbanHistoryIndex < kanbanHistory.length - 1;
 
   // Global Filtered Tickets
-  const filteredTickets = kanbanMockTickets.filter(t => 
-    !kanbanSearchQuery || 
-    t.title.toLowerCase().includes(kanbanSearchQuery.toLowerCase()) || 
-    t.description.toLowerCase().includes(kanbanSearchQuery.toLowerCase())
-  );
+  const filteredTickets = kanbanMockTickets.filter(t => {
+    const matchesSearch = !kanbanSearchQuery || 
+      t.title.toLowerCase().includes(kanbanSearchQuery.toLowerCase()) || 
+      t.description.toLowerCase().includes(kanbanSearchQuery.toLowerCase());
+    
+    // For Board view, we might not want these dropdown filters to apply, but the requirement 
+    // says "Update the render list logic: The displayed tickets must be filtered through BOTH 
+    // the text search AND all active dropdown/chip filters".
+    const matchesPriority = filterPriority === 'All' || t.priority === filterPriority;
+    const matchesType = filterType === 'All' || t.type === filterType;
+    const matchesAssignee = filterAssignee === 'All' || (filterAssignee === 'Unassigned' ? !t.assignee : t.assignee === filterAssignee);
+    const matchesReporter = filterReporter === 'All' || t.reporter === filterReporter;
+    const matchesCycleId = filterCycleId === 'All' || (filterCycleId === 'None' ? !t.cycleId : t.cycleId === filterCycleId);
+
+    return matchesSearch && matchesPriority && matchesType && matchesAssignee && matchesReporter && matchesCycleId;
+  });
 
   // Reset edit state when selected ticket changes
   useEffect(() => {
@@ -801,47 +827,104 @@ export const KanbanWidget: React.FC = () => {
 
     return (
       <div className="p-8 max-w-5xl mx-auto w-full h-full overflow-y-auto flex flex-col">
-        <div className="flex items-center justify-between mb-8 shrink-0">
-          <h2 className="text-2xl font-semibold text-zinc-100">{isBacklog ? 'Backlog' : 'All Tickets'}</h2>
-          <div className="flex items-center gap-3">
-            <select
-              value={allTicketsItemsPerPage}
-              onChange={(e) => {
-                setAllTicketsItemsPerPage(Number(e.target.value));
-                setAllTicketsPage(1);
-              }}
-              className="bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 rounded px-2 py-1.5 outline-none cursor-pointer hover:border-zinc-700 transition-colors"
-            >
-              {allTicketsLayout === 'grid' ? (
-                <>
-                  <option value={10}>10 / page</option>
-                  <option value={15}>15 / page</option>
-                  <option value={20}>20 / page</option>
-                </>
-              ) : (
-                <>
-                  <option value={20}>20 / page</option>
-                  <option value={30}>30 / page</option>
-                  <option value={50}>50 / page</option>
-                </>
-              )}
-            </select>
-            <div className="flex items-center gap-1 bg-zinc-900/50 border border-zinc-800/80 p-1 rounded-md">
-              <button 
-                onClick={() => handleAllTicketsLayoutChange('grid')}
-                className={`p-1.5 rounded transition-colors ${allTicketsLayout === 'grid' ? 'bg-zinc-800 text-zinc-200 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
-                title="Grid View"
+        <div className="flex flex-col mb-8 shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-zinc-100">{isBacklog ? 'Backlog' : 'All Tickets'}</h2>
+            <div className="flex items-center gap-3">
+              <select
+                value={allTicketsItemsPerPage}
+                onChange={(e) => {
+                  setAllTicketsItemsPerPage(Number(e.target.value));
+                  setAllTicketsPage(1);
+                }}
+                className="bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 rounded px-2 py-1.5 outline-none cursor-pointer hover:border-zinc-700 transition-colors"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-              </button>
-              <button 
-                onClick={() => handleAllTicketsLayoutChange('list')}
-                className={`p-1.5 rounded transition-colors ${allTicketsLayout === 'list' ? 'bg-zinc-800 text-zinc-200 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
-                title="List View"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-              </button>
+                {allTicketsLayout === 'grid' ? (
+                  <>
+                    <option value={10}>10 / page</option>
+                    <option value={15}>15 / page</option>
+                    <option value={20}>20 / page</option>
+                  </>
+                ) : (
+                  <>
+                    <option value={20}>20 / page</option>
+                    <option value={30}>30 / page</option>
+                    <option value={50}>50 / page</option>
+                  </>
+                )}
+              </select>
+              <div className="flex items-center gap-1 bg-zinc-900/50 border border-zinc-800/80 p-1 rounded-md">
+                <button 
+                  onClick={() => handleAllTicketsLayoutChange('grid')}
+                  className={`p-1.5 rounded transition-colors ${allTicketsLayout === 'grid' ? 'bg-zinc-800 text-zinc-200 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Grid View"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                </button>
+                <button 
+                  onClick={() => handleAllTicketsLayoutChange('list')}
+                  className={`p-1.5 rounded transition-colors ${allTicketsLayout === 'list' ? 'bg-zinc-800 text-zinc-200 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="List View"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                </button>
+              </div>
             </div>
+          </div>
+          
+          {/* Advanced Filter UI */}
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filterPriority}
+              onChange={(e) => setFilterPriority(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded px-2 py-1.5 outline-none cursor-pointer hover:border-zinc-600 transition-colors"
+            >
+              <option value="All">All Priorities</option>
+              {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded px-2 py-1.5 outline-none cursor-pointer hover:border-zinc-600 transition-colors"
+            >
+              <option value="All">All Types</option>
+              {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <select
+              value={filterAssignee}
+              onChange={(e) => setFilterAssignee(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded px-2 py-1.5 outline-none cursor-pointer hover:border-zinc-600 transition-colors"
+            >
+              <option value="All">All Assignees</option>
+              <option value="Unassigned">Unassigned</option>
+              {availableActors.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <select
+              value={filterReporter}
+              onChange={(e) => setFilterReporter(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded px-2 py-1.5 outline-none cursor-pointer hover:border-zinc-600 transition-colors"
+            >
+              <option value="All">All Reporters</option>
+              {availableActors.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <select
+              value={filterCycleId}
+              onChange={(e) => setFilterCycleId(e.target.value)}
+              className="bg-zinc-800 border border-zinc-700 text-xs text-zinc-300 rounded px-2 py-1.5 outline-none cursor-pointer hover:border-zinc-600 transition-colors max-w-xs"
+            >
+              <option value="All">All Cycles</option>
+              <option value="None">No Cycle</option>
+              {kanbanMockCycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs text-zinc-300 hover:text-white ml-2 border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded transition-colors shadow-sm"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
         

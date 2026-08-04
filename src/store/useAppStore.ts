@@ -298,9 +298,9 @@ export const useAppStore = create<AppState>()(
   toggleKanban: (enabled: boolean) => set({ isKanbanEnabled: enabled }),
   
   kanbanMockCycles: [
-    { id: 'CYCLE-1', name: 'Somaterm MVP', status: 'Active', targetDate: '2026-08-15', description: 'This is the initial Minimum Viable Product for Somaterm. It includes the foundational Kanban board, AI agent orchestration framework, and core CLI tools.' },
-    { id: 'CYCLE-2', name: 'Phase 2: IDE Features', status: 'On Hold', targetDate: '2026-09-01' },
-    { id: 'CYCLE-3', name: 'Foundation Polish', status: 'Completed', targetDate: '2026-07-30' },
+    { id: 'CYCLE-1', name: 'Somaterm MVP', status: 'Active', targetDate: '2026-08-15', description: 'This cycle covers the foundational architecture of the Somaterm agentic environment. It includes the Kanban UI, local database setup, and basic state management.' },
+    { id: 'CYCLE-2', name: 'Phase 2: IDE Features', status: 'On Hold', targetDate: '2026-09-01', description: 'This upcoming cycle focuses on expanding the IDE capabilities, including advanced code editing, a native file explorer, and tighter LLM integration for automated test generation.' },
+    { id: 'CYCLE-3', name: 'Foundation Polish', status: 'Completed', targetDate: '2026-07-30', description: 'Initial work to set up Tauri, React, Tailwind, and basic window chrome.' },
   ],
   kanbanActiveCycleId: 'CYCLE-1',
   
