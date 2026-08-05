@@ -48,15 +48,20 @@ pub async fn test_llm_connection(
     }
 
     let outgoing_json = if actual_url.contains("/api/chat") || is_remote || payload.provider.to_lowercase() == "openai" {
-        serde_json::json!({
+        let mut json = serde_json::json!({
             "model": payload.model,
             "messages": [{"role": "user", "content": payload.prompt}],
-        })
+        });
+        if !is_remote && payload.provider.to_lowercase() != "openai" {
+            json.as_object_mut().unwrap().insert("keep_alive".to_string(), serde_json::json!(0));
+        }
+        json
     } else {
         serde_json::json!({
             "model": payload.model,
             "prompt": payload.prompt,
-            "stream": false
+            "stream": false,
+            "keep_alive": 0
         })
     };
 
@@ -104,16 +109,21 @@ pub async fn stream_llm_response(
     }
 
     let outgoing_json = if actual_url.contains("/api/chat") || is_remote || payload.provider.to_lowercase() == "openai" {
-        serde_json::json!({
+        let mut json = serde_json::json!({
             "model": payload.model,
             "messages": [{"role": "user", "content": payload.prompt}],
             "stream": true
-        })
+        });
+        if !is_remote && payload.provider.to_lowercase() != "openai" {
+            json.as_object_mut().unwrap().insert("keep_alive".to_string(), serde_json::json!(0));
+        }
+        json
     } else {
         serde_json::json!({
             "model": payload.model,
             "prompt": payload.prompt,
-            "stream": true
+            "stream": true,
+            "keep_alive": 0
         })
     };
 
