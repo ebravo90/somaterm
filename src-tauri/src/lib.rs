@@ -3,6 +3,7 @@ pub mod logger;
 mod pty;
 pub mod db;
 pub mod kanban;
+pub mod llm;
 
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu, SubmenuBuilder};
@@ -181,6 +182,7 @@ pub fn run() {
                 db::init_db(&handle).await.expect("Failed to initialize database")
             });
             app.manage(pool);
+            app.manage(reqwest::Client::new());
 
             let handle_clone = app.handle();
             let menu = build_menu(handle_clone, &[])?;
@@ -232,7 +234,8 @@ pub fn run() {
             ipc::search_files,
             kanban::fetch_kanban_board,
             kanban::create_ticket,
-            kanban::update_ticket_status
+            kanban::update_ticket_status,
+            llm::test_llm_connection
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
