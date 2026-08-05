@@ -6,9 +6,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { exit } from '@tauri-apps/plugin-process';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { NativeWebview, untrackWebView } from './components/Widgets/NativeWebview';
-import { AgentWidget } from './components/Widgets/AgentWidget';
+import { AgentChatContainer } from './components/Widgets/Agent/AgentChatContainer';
 import { WebManagerWidget } from './components/Widgets/WebManagerWidget';
-import { FileExplorerWidget } from './components/Widgets/FileExplorerWidget';
+import { FileExplorerWidget } from './components/Widgets/FileExplorer/FileExplorerWidget';
 import { KanbanWidget } from './components/Widgets/KanbanWidget';
 import { SettingsModal } from './components/SettingsModal';
 import { DebugConsole } from './components/DebugConsole';
@@ -390,7 +390,7 @@ function App() {
           ) : activeWidget.type === 'kanban' ? (
             <KanbanWidget />
           ) : (
-            <AgentWidget />
+            <AgentChatContainer />
           )}
         </div>
       )}

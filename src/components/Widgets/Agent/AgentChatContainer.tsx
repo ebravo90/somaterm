@@ -1,192 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAppStore } from '../../store/useAppStore';
-import type { AgentProfile, Session, ChatMessage } from '../../store/useAppStore';
+import { useAppStore } from '../../../store/useAppStore';
+import type { AgentProfile, Session } from '../../../types/store.types';
 import { invoke } from '@tauri-apps/api/core';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 
-function CodeBlock({ lang, code }: { lang: string; code: string }) {
-  const [isSent, setIsSent] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
-  const isRunnable = ['bash', 'sh', 'zsh'].includes(lang?.toLowerCase());
 
-  const handleRun = async () => {
-    setRunError(null);
-    try {
-      const store = useAppStore.getState();
-      const terminalId = store.activeTerminalId || (store.terminals && store.terminals.length > 0 ? store.terminals[0].id : null);
-      if (!terminalId) {
-        console.warn("No active terminal found.");
-        return;
-      }
-      
-      await invoke('write_to_pty', { 
-        id: terminalId, 
-        data: code + '\r'
-      });
-      
-      setIsSent(true);
-      setTimeout(() => setIsSent(false), 1500);
-    } catch (error: unknown) {
-      const e = error as Error;
-      console.error("Failed to run code in terminal:", e);
-      setRunError(e.toString());
-      setTimeout(() => setRunError(null), 5000);
-    }
-  };
+import { MessageBubble } from './MessageBubble';
+import { ContextFilePicker } from './ContextFilePicker';
+import { ChatInputArea } from './ChatInputArea';
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setIsSent(true);
-    setTimeout(() => setIsSent(false), 1500);
-  };
 
-  const baseBtnClasses = "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors inline-flex items-center justify-center cursor-pointer";
 
-  return (
-    <div className="my-2 bg-[#1e1e1e] rounded overflow-hidden border border-soma-border">
-      <div className="flex justify-between items-center px-3 py-1 bg-[#2d2d2d] text-xs text-gray-400">
-        <span>{lang || 'code'}</span>
-        {isRunnable ? (
-          <button 
-            onClick={handleRun}
-            className={`${baseBtnClasses} ${
-              isSent ? 'bg-green-600 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white'
-            }`}
-          >
-            {isSent ? 'Sent! 🚀' : 'Run in Terminal'}
-          </button>
-        ) : (
-          <button 
-            onClick={handleCopy}
-            className={`${baseBtnClasses} ${
-              isSent ? 'bg-green-600 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-100'
-            }`}
-          >
-            {isSent ? 'Copied!' : 'Copy'}
-          </button>
-        )}
-      </div>
-      <pre className="p-3 text-sm overflow-x-auto whitespace-pre-wrap">
-        <code>{code}</code>
-      </pre>
-      {runError && (
-        <div className="bg-red-900/50 text-red-200 text-xs p-2 border-t border-red-800">
-          ⚠️ {runError}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function GlobalCopyButton({ content }: { content: string }) {
-  const [isCopied, setIsCopied] = useState(false);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(content);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 1500);
-  };
-
-  return (
-    <button 
-      type="button"
-      onClick={handleCopy}
-      className="mt-1 flex items-center gap-1 text-[10px] text-gray-500 hover:text-gray-300 transition-colors cursor-pointer relative z-10"
-    >
-      {isCopied ? (
-        <>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          Copied
-        </>
-      ) : (
-        <>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          Copy
-        </>
-      )}
-    </button>
-  );
-}
-
-function getFileIcon(filename: string) {
-  const ext = filename.split('.').pop()?.toLowerCase();
-  switch (ext) {
-    case 'rs':
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
-    case 'json':
-    case 'md':
-    case 'css':
-    case 'html':
-      return '📄';
-    default:
-      return '📄';
-  }
-}
-
-const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: ChatMessage }) {
-  return (
-    <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-      <div className={`max-w-[90%] p-3 rounded-lg break-words overflow-hidden ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
-        <div className={msg.role === 'assistant' ? "prose prose-sm prose-invert max-w-none" : ""}>
-          <Markdown 
-            remarkPlugins={[remarkGfm]}
-            components={{
-              h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-6 mb-4" {...props} />,
-              h2: ({node, ...props}) => <h2 className="text-xl font-semibold mt-5 mb-3" {...props} />,
-              h3: ({node, ...props}) => <h3 className="text-lg font-medium mt-4 mb-2" {...props} />,
-              p: ({node, ...props}) => <p className="mb-4 leading-relaxed" {...props} />,
-              ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-4 space-y-1" {...props} />,
-              ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-4 space-y-1" {...props} />,
-              code(props) {
-                const {children, className, node, ...rest} = props;
-                const match = /language-(\w+)/.exec(className || '');
-                return match ? (
-                  <CodeBlock lang={match[1]} code={String(children).replace(/\n$/, '')} />
-                ) : (
-                  <code {...rest} className={className}>
-                    {children}
-                  </code>
-                );
-              }
-            }}
-          >
-            {msg.content}
-          </Markdown>
-        </div>
-        
-        {msg.attachments && msg.attachments.length > 0 && (
-          <details className={`mt-2 text-xs border-t pt-2 ${msg.role === 'user' ? 'border-white/20' : 'border-soma-border'}`}>
-            <summary className="cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
-              📎 {msg.attachments.length} file(s) attached
-            </summary>
-            <div className="mt-2 space-y-1 pl-4 opacity-80">
-              {msg.attachments.map((file: string, i: number) => (
-                <div key={i} className="flex items-center gap-1">
-                  <span>{getFileIcon(file)}</span>
-                  <span className="truncate">{file}</span>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-      </div>
-      {msg.role === 'assistant' && (
-        <GlobalCopyButton content={msg.content} />
-      )}
-      {msg.meta && (
-        <div className="text-[10px] text-gray-500 mt-1 pl-1">
-          {msg.meta}
-        </div>
-      )}
-    </div>
-  );
-});
 
 
 function AgentSettingsItem({
@@ -278,7 +101,7 @@ function AgentSettingsItem({
     if (!hasManuallyEditedName) {
       let uniqueName = newModelName;
       let counter = 1;
-      while (agents.some(a => a.id !== agent.id && a.displayName === uniqueName)) {
+      while (agents.some((a: AgentProfile) => a.id !== agent.id && a.displayName === uniqueName)) {
         uniqueName = `${newModelName} (${counter})`;
         counter++;
       }
@@ -555,7 +378,7 @@ function HistoryItem({
   );
 }
 
-export function AgentWidget() {
+export function AgentChatContainer() {
   const { 
     closeWidget, 
     sessions,
@@ -576,8 +399,7 @@ export function AgentWidget() {
     isGenerating,
     hasLoadedHistory,
     setHasLoadedHistory,
-    stagedContextFiles,
-    removeContextFile
+    stagedContextFiles
   } = useAppStore();
   
   const [tab, setTab] = useState<'chat' | 'history' | 'settings'>('chat');
@@ -649,7 +471,7 @@ export function AgentWidget() {
         const savedSelected = localStorage.getItem('soma_selected_agent');
         if (Array.isArray(savedAgents) && savedAgents.length > 0) {
           setAgents(savedAgents);
-          if (savedSelected && savedAgents.some(a => a.id === savedSelected)) {
+          if (savedSelected && savedAgents.some((a: AgentProfile) => a.id === savedSelected)) {
             setSelectedAgentId(savedSelected);
           } else {
             setSelectedAgentId(savedAgents[0].id);
@@ -710,7 +532,7 @@ export function AgentWidget() {
   // Auto-select first online agent if current is invalid
   useEffect(() => {
     const onlineAgents = agents.filter(a => a.status === 'online');
-    const isSelectedOnline = onlineAgents.some(a => a.id === selectedAgentId);
+    const isSelectedOnline = onlineAgents.some((a: AgentProfile) => a.id === selectedAgentId);
     
     if (!isSelectedOnline && onlineAgents.length > 0) {
       setSelectedAgentId(onlineAgents[0].id);
@@ -818,7 +640,7 @@ export function AgentWidget() {
                 <span>
                   {onlineAgents.length === 0 
                     ? 'No agents available' 
-                    : agents.find(a => a.id === selectedAgentId)?.displayName || 'Select an agent...'}
+                    : agents.find((a: AgentProfile) => a.id === selectedAgentId)?.displayName || 'Select an agent...'}
                 </span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                   className={`transition-transform text-soma-text-muted ${isDropdownOpen ? 'rotate-180' : ''}`}
@@ -868,7 +690,7 @@ export function AgentWidget() {
             >
               {currentMessages.length === 0 && (
                 <div className="hidden @[250px]:block text-center text-soma-text-muted mt-10">
-                  <p>Send a message to start interacting with {agents.find(a => a.id === selectedAgentId)?.displayName || 'the agent'}.</p>
+                  <p>Send a message to start interacting with {agents.find((a: AgentProfile) => a.id === selectedAgentId)?.displayName || 'the agent'}.</p>
                 </div>
               )}
               {currentMessages.map((msg, i) => {
@@ -899,77 +721,15 @@ export function AgentWidget() {
               )}
             </div>
             <div className="p-4 pt-0 shrink-0 flex flex-col gap-2 relative">
-              {stagedContextFiles && stagedContextFiles.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {stagedContextFiles.map(file => {
-                    const name = file.split('/').pop() || file;
-                    return (
-                      <div key={file} className="flex items-center gap-1 bg-soma-bg/80 backdrop-blur border border-soma-border rounded-full px-3 py-1 text-xs text-soma-text">
-                        <span>{getFileIcon(name)} {name}</span>
-                        <button 
-                          onClick={() => removeContextFile(file)}
-                          className="ml-1 text-soma-text-muted hover:text-red-400 transition-colors cursor-pointer"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="relative flex items-center bg-[#1e1e1e] border border-soma-border rounded-full shadow-inner focus-within:border-soma-accent transition-colors">
-                <button 
-                  type="button"
-                  onClick={() => {
-                    console.log("Context picker activated, switching to File Explorer");
-                    store.setContextPickerMode(true);
-                    store.setActiveWidget({ type: 'file_explorer' });
-                  }}
-                  className="absolute left-1.5 w-7 h-7 flex items-center justify-center rounded-full text-soma-text-muted hover:bg-soma-border/50 hover:text-soma-text transition-colors cursor-pointer z-10"
-                  title="Add Context Files"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                </button>
-                <input 
-                  type="text" 
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSend()}
-                  placeholder="Ask the agent..."
-                  disabled={!selectedAgentId || onlineAgents.length === 0}
-                  className="w-full bg-transparent rounded-full pl-10 pr-10 py-2.5 text-sm text-soma-text focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                />
-                
-                {isGenerating ? (
-                  <button
-                    onClick={() => store.stopGeneration()}
-                    className="absolute right-1.5 w-7 h-7 flex items-center justify-center rounded-full hover:bg-soma-border/50 transition-colors cursor-pointer z-10 group"
-                    title="Stop Generation"
-                  >
-                    <div className="w-3 h-3 bg-soma-text-muted group-hover:bg-red-500 rounded-[2px] transition-colors"></div>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSend}
-                    disabled={!selectedAgentId || onlineAgents.length === 0 || (!input.trim() && stagedContextFiles.length === 0)}
-                    className="absolute right-1.5 w-7 h-7 flex items-center justify-center rounded-full bg-soma-accent hover:bg-soma-accent/80 text-white transition-colors cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Send Message"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="22" y1="2" x2="11" y2="13"></line>
-                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
-                  </button>
-                )}
-              </div>
-              {onlineAgents.length === 0 && (
-                <div className="text-[10px] text-red-400 pl-2">
-                  No verified agents. Go to Settings to configure an agent.
-                </div>
-              )}
+              <ContextFilePicker />
+
+              <ChatInputArea 
+                input={input} 
+                setInput={setInput} 
+                handleSend={handleSend} 
+                selectedAgentId={selectedAgentId} 
+                onlineAgents={onlineAgents} 
+              />
             </div>
           </div>
         )}
@@ -1017,7 +777,7 @@ export function AgentWidget() {
                     }}
                     deleteSession={deleteSession}
                     updateSession={updateSession}
-                    agentDisplayName={agents.find(a => a.id === session.agentId)?.displayName || 'Unknown Agent'}
+                    agentDisplayName={agents.find((a: AgentProfile) => a.id === session.agentId)?.displayName || 'Unknown Agent'}
                     isGenerating={isGenerating}
                   />
               ))}

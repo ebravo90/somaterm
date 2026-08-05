@@ -11,9 +11,11 @@ export interface TerminalSlice {
   closeTerminal: (id: string) => Promise<void>;
 }
 
-export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> = (set) => ({
-  terminals: [],
-  activeTerminalId: null,
+export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> = (set, get) => {
+  const initialId = `term-${Date.now()}`;
+  return {
+    terminals: [{ id: initialId, name: 'Terminal', activeProcess: false }],
+    activeTerminalId: initialId,
 
   setActiveTerminalId: (id) => set({ activeTerminalId: id }),
 
@@ -30,6 +32,13 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
   })),
 
   closeTerminal: async (id) => {
+    const state = get();
+    const session = state.terminals.find(t => t.id === id);
+    if (session?.activeProcess) {
+      const confirm = window.confirm("Process is still running. Force close?");
+      if (!confirm) return;
+    }
+
     try {
       await invoke('close_pty', { id });
     } catch (e) {
@@ -37,13 +46,21 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
     }
     
     set((state) => {
-      const newTerminals = state.terminals.filter(t => t.id !== id);
-      return {
-        terminals: newTerminals,
-        activeTerminalId: state.activeTerminalId === id 
-          ? (newTerminals[newTerminals.length - 1]?.id ?? null)
-          : state.activeTerminalId
-      };
+      const newTerms = state.terminals.filter(t => t.id !== id);
+      let newActiveId = state.activeTerminalId;
+      if (newActiveId === id) {
+        newActiveId = newTerms.length > 0 ? newTerms[newTerms.length - 1].id : null;
+      }
+      
+      if (newTerms.length === 0) {
+        const newId = `term-${Date.now()}`;
+        return { 
+          terminals: [{ id: newId, name: 'Terminal', activeProcess: false }],
+          activeTerminalId: newId 
+        };
+      }
+      return { terminals: newTerms, activeTerminalId: newActiveId };
     });
   },
-});
+};
+};
