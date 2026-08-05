@@ -44,6 +44,11 @@ describe('File Explorer to Agent Bridge Tests', () => {
         if (browser.capabilities.browserName !== 'wry') {
             await browser.url('/');
         }
+        // Wait for React and Zustand store to be fully initialized
+        await browser.waitUntil(
+            async () => await browser.execute(() => typeof (window as any).__store !== 'undefined'),
+            { timeout: 15000, timeoutMsg: 'Store was not initialized' }
+        );
 
         // Open file explorer
         await browser.execute(() => {
@@ -105,6 +110,11 @@ describe('File Explorer to Agent Bridge Tests', () => {
         if (browser.capabilities.browserName !== 'wry') {
             await browser.url('/');
         }
+        // Wait for React and Zustand store to be fully initialized
+        await browser.waitUntil(
+            async () => await browser.execute(() => typeof (window as any).__store !== 'undefined'),
+            { timeout: 15000, timeoutMsg: 'Store was not initialized' }
+        );
         
         // Intercept Tauri invoke and fetch
         await browser.execute(() => {
