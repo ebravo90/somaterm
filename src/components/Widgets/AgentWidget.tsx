@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import type { AgentProfile, Session } from '../../store/useAppStore';
+import type { AgentProfile, Session, ChatMessage } from '../../store/useAppStore';
 import { invoke } from '@tauri-apps/api/core';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -27,7 +27,8 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
       
       setIsSent(true);
       setTimeout(() => setIsSent(false), 1500);
-    } catch (e: any) {
+    } catch (error: unknown) {
+      const e = error as Error;
       console.error("Failed to run code in terminal:", e);
       setRunError(e.toString());
       setTimeout(() => setRunError(null), 5000);
@@ -128,7 +129,7 @@ function getFileIcon(filename: string) {
   }
 }
 
-const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: any }) {
+const MessageBubble = React.memo(function MessageBubble({ msg }: { msg: ChatMessage }) {
   return (
     <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
       <div className={`max-w-[90%] p-3 rounded-lg break-words overflow-hidden ${msg.role === 'user' ? 'bg-soma-accent text-white' : 'bg-soma-border text-soma-text'}`}>
@@ -246,7 +247,7 @@ function AgentSettingsItem({
         headers['Authorization'] = `Bearer ${agent.apiKey.trim()}`;
       }
 
-      const verifyPayload: any = {
+      const verifyPayload: Record<string, unknown> = {
         model: agent.modelName.trim(),
         messages: [{ role: 'system', content: 'hello' }],
         max_tokens: 1

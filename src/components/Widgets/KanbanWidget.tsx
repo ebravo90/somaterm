@@ -1021,7 +1021,7 @@ export const KanbanWidget: React.FC = () => {
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">Status</label>
                   <select 
                     value={createStatus}
-                    onChange={(e) => setCreateStatus(e.target.value as any)}
+                    onChange={(e) => setCreateStatus(e.target.value as KanbanTicket['status'])}
                     className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
                   >
                     {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1031,7 +1031,7 @@ export const KanbanWidget: React.FC = () => {
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">Priority</label>
                   <select 
                     value={createPriority}
-                    onChange={(e) => setCreatePriority(e.target.value as any)}
+                    onChange={(e) => setCreatePriority(e.target.value as KanbanTicket['priority'])}
                     className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
                   >
                     {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -1041,7 +1041,7 @@ export const KanbanWidget: React.FC = () => {
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">Type</label>
                   <select 
                     value={createType}
-                    onChange={(e) => setCreateType(e.target.value as any)}
+                    onChange={(e) => setCreateType(e.target.value as KanbanTicket['type'])}
                     className="w-full bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 rounded py-2 px-3 focus:outline-none focus:border-blue-500 transition-colors"
                   >
                     {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1343,14 +1343,14 @@ export const KanbanWidget: React.FC = () => {
                   <div className="flex items-center gap-4">
                     <select 
                       value={editType}
-                      onChange={(e) => setEditType(e.target.value as any)}
+                      onChange={(e) => setEditType(e.target.value as KanbanTicket['type'])}
                       className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
                     >
                       {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                     <select 
                       value={editPriority}
-                      onChange={(e) => setEditPriority(e.target.value as any)}
+                      onChange={(e) => setEditPriority(e.target.value as KanbanTicket['priority'])}
                       className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
                     >
                       {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
@@ -1365,7 +1365,7 @@ export const KanbanWidget: React.FC = () => {
                     </select>
                     <select 
                       value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value as any)}
+                      onChange={(e) => setEditStatus(e.target.value as KanbanTicket['status'])}
                       className="bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 rounded py-1.5 px-2 focus:outline-none focus:border-blue-500"
                     >
                       {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
@@ -1698,21 +1698,21 @@ export const KanbanWidget: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <select 
                           value={editStatus}
-                          onChange={(e) => setEditStatus(e.target.value as any)}
+                          onChange={(e) => setEditStatus(e.target.value as KanbanTicket['status'])}
                           className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
                         >
                           {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                         <select 
                           value={editType}
-                          onChange={(e) => setEditType(e.target.value as any)}
+                          onChange={(e) => setEditType(e.target.value as KanbanTicket['type'])}
                           className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
                         >
                           {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                         <select 
                           value={editPriority}
-                          onChange={(e) => setEditPriority(e.target.value as any)}
+                          onChange={(e) => setEditPriority(e.target.value as KanbanTicket['priority'])}
                           className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded py-1 px-1.5 focus:outline-none focus:border-blue-500"
                         >
                           {PRIORITY_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
