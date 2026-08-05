@@ -47,10 +47,7 @@ jobs:
       - name: Install Node dependencies
         run: npm install
       - name: Run WebdriverIO E2E Local/Mocked Tests
-        run: |
-          npm run dev:mock &
-          sleep 5
-          npm run test:e2e:local
+        run: npm run test:e2e:local
       - name: Fail Fast (Cancel Run)
         if: failure()
         run: gh run cancel ${{ github.run_id }}
