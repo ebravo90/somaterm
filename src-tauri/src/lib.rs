@@ -2,6 +2,7 @@ mod ipc;
 pub mod logger;
 mod pty;
 pub mod db;
+pub mod kanban;
 
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu, SubmenuBuilder};
@@ -228,7 +229,10 @@ pub fn run() {
             ipc::get_system_shell,
             ipc::get_initial_cwd,
             ipc::read_file_content,
-            ipc::search_files
+            ipc::search_files,
+            kanban::fetch_kanban_board,
+            kanban::create_ticket,
+            kanban::update_ticket_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
