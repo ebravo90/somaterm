@@ -6,8 +6,11 @@ describe('File Explorer Widget Tests', () => {
             await browser.url('/');
         }
         
-        const root = await $('#root');
-        await root.waitForExist({ timeout: 15000 });
+        // Wait for React and Zustand store to be fully initialized
+        await browser.waitUntil(
+            async () => await browser.execute(() => typeof (window as any).__store !== 'undefined'),
+            { timeout: 15000, timeoutMsg: 'Store was not initialized' }
+        );
 
         const fileExplorerToggle = await $('button[title="Toggle File Explorer"]');
         expect(await fileExplorerToggle.isExisting()).toBe(false);
