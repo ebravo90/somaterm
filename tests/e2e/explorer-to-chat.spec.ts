@@ -111,19 +111,11 @@ describe('File Explorer to Agent Bridge Tests', () => {
                 if (cmd === 'read_file_content') {
                     return Promise.resolve("MOCKED_FILE_CONTENT_123");
                 }
-                return originalInvoke(cmd, args);
-            };
-            
-            const originalFetch = window.fetch;
-            window.fetch = async (...args) => {
-                if (typeof args[0] === 'string' && args[0].includes('/api/chat')) {
-                    const req = args[1];
-                    if (req && req.body) {
-                        (window as any).__interceptedPayloads.push(JSON.parse(req.body as string));
-                    }
-                    return new Response(JSON.stringify({ message: { content: "Mocked response" } }));
+                if (cmd === 'stream_llm_response') {
+                    (window as any).__interceptedPayloads.push(args.payload);
+                    return Promise.resolve();
                 }
-                return originalFetch(...args);
+                return originalInvoke(cmd, args);
             };
         });
 
@@ -175,11 +167,10 @@ describe('File Explorer to Agent Bridge Tests', () => {
         const intercepted = await browser.execute(() => (window as any).__interceptedPayloads);
         expect(intercepted.length).toBeGreaterThan(0);
         
-        const payloadMessages = intercepted[0].messages;
-        const lastUserMessage = payloadMessages[payloadMessages.length - 1];
+        const payload = intercepted[0];
         
-        expect(lastUserMessage.content).toContain("Explain this code");
-        expect(lastUserMessage.content).toContain("MOCKED_FILE_CONTENT_123");
-        expect(lastUserMessage.content).toContain("FileA.ts");
+        expect(payload.prompt).toContain("Explain this code");
+        expect(payload.prompt).toContain("MOCKED_FILE_CONTENT_123");
+        expect(payload.prompt).toContain("FileA.ts");
     });
 });

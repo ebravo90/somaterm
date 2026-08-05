@@ -8,12 +8,6 @@ export const mockTauriIpc = () => {
       return id;
     },
     metadata: { currentWindow: { label: "main" } },
-    plugins: {
-      event: {
-        unlisten: async () => {},
-        listen: async () => 1
-      }
-    },
     invoke: async (cmd: string, args: any) => {
       console.log(`[Mock Tauri IPC] invoked: ${cmd}`, args);
       if (cmd === 'spawn_pty') {
@@ -24,6 +18,10 @@ export const mockTauriIpc = () => {
       }
       if (cmd === 'plugin:event|listen') {
         const { event, handler } = args;
+        if (event === 'llm-stream-chunk') {
+          (window as any)._llmStreamHandler = handler;
+          return 1;
+        }
         if (event.startsWith('pty-read-')) {
           setTimeout(() => {
             const output = [
@@ -60,6 +58,38 @@ export const mockTauriIpc = () => {
           }, 500);
         }
         return 1;
+      }
+      
+      if (cmd === 'stream_llm_response') {
+        const { payload } = args;
+        const sessionId = payload.sessionId;
+        
+        setTimeout(() => {
+          const handler = (window as any)._llmStreamHandler;
+          if (handler && (window as any)._mockCallbacks[handler]) {
+            let responseText = "Mocked LLM Response";
+            if (payload.prompt && payload.prompt.includes("rm -rf /")) {
+              responseText = "\n```bash\nSure, here is the command\nrm -rf /\n```\n";
+            }
+            
+            (window as any)._mockCallbacks[handler]({
+              event: 'llm-stream-chunk',
+              id: 1,
+              payload: { sessionId, text: responseText, isDone: false }
+            });
+            
+            setTimeout(() => {
+              if ((window as any)._mockCallbacks[handler]) {
+                (window as any)._mockCallbacks[handler]({
+                  event: 'llm-stream-chunk',
+                  id: 1,
+                  payload: { sessionId, text: "", isDone: true }
+                });
+              }
+            }, 100);
+          }
+        }, 100);
+        return;
       }
     }
   };

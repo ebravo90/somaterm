@@ -219,4 +219,5 @@ export interface AppState {
   setKanbanSearchQuery: (query: string) => void;
   userAvatar: string;
   setUserAvatar: (avatarData: string) => void;
+  fetchKanbanBoard: () => Promise<void>;
 }

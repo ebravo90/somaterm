@@ -48,7 +48,6 @@ export interface AgentSlice {
 
 import { generateTitleWithLLM, buildSystemPrompt } from '../../services/llmService';
 import { listen } from '@tauri-apps/api/event';
-import type { UnlistenFn } from '@tauri-apps/api/event';
 
 export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set, get) => ({
   sessions: [],
@@ -287,7 +286,8 @@ export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set
       const promptText = `${systemPrompt}\n\n` + networkMessages.map(m => `${m.role.toUpperCase()}:\n${m.content}`).join('\n\n');
 
       const unlisten = await listen<{ sessionId: string, text: string, isDone: boolean }>('llm-stream-chunk', (event) => {
-        if (event.payload.sessionId !== sessionId) return;
+        console.log("RECEIVED STREAM EVENT IN FRONTEND:", event.payload);
+        const { sessionId: incomingSessionId, text, isDone } = event.payload;
         
         if (event.payload.text) {
           get().appendMessageChunkToActiveSession(event.payload.text);

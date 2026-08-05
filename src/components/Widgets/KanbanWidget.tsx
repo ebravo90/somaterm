@@ -306,7 +306,7 @@ export const KanbanWidget: React.FC = () => {
 
   const renderBoard = () => {
     // Filter tickets by active cycle
-    const boardTickets = filteredTickets.filter(t => t.cycleId === kanbanActiveCycleId);
+    const boardTickets = filteredTickets.filter(t => (t.cycleId || null) === kanbanActiveCycleId);
     const activeTicket = activeId ? kanbanMockTickets.find(t => t.id === activeId) : null;
 
     return (

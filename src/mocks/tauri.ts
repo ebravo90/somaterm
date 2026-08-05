@@ -36,10 +36,15 @@ export function setupTauriMocks() {
   };
 
 
+  const eventListeners: Record<string, any[]> = {};
+
   mockIPC((cmd, args: any) => {
     console.log(`[Tauri Mock] IPC Command intercepted: ${cmd}`, args);
 
     if (cmd === "plugin:event|listen") {
+      const { event, handler } = args;
+      if (!eventListeners[event]) eventListeners[event] = [];
+      eventListeners[event].push(handler);
       return Math.floor(Math.random() * 1000000);
     }
 
@@ -57,7 +62,23 @@ export function setupTauriMocks() {
         const { id } = args;
         if (data.includes("echo $PATH")) {
            setTimeout(() => {
-             emit(`pty-read-${id}`, "/usr/local/bin:/opt/homebrew/bin\r\n");
+             const listeners = eventListeners[`pty-read-${id}`] || [];
+             listeners.forEach(handlerId => {
+               if ((window as any)._mockCallbacks && (window as any)._mockCallbacks[handlerId]) {
+                 (window as any)._mockCallbacks[handlerId]({
+                   event: `pty-read-${id}`,
+                   id: 1,
+                   payload: "/usr/local/bin:/opt/homebrew/bin\r\n"
+                 });
+               } else if (typeof (window as any)[`_${handlerId}`] === 'function') {
+                   (window as any)[`_${handlerId}`]({
+                       event: `pty-read-${id}`,
+                       payload: "/usr/local/bin:/opt/homebrew/bin\r\n"
+                   });
+               } else {
+                 emit(`pty-read-${id}`, "/usr/local/bin:/opt/homebrew/bin\r\n");
+               }
+             });
            }, 100);
         }
       }
@@ -67,7 +88,18 @@ export function setupTauriMocks() {
     if (cmd === "spawn_pty") {
        const { id } = args;
        setTimeout(() => {
-         emit(`pty-read-${id}`, "Mock Terminal Ready\r\n");
+         const listeners = eventListeners[`pty-read-${id}`] || [];
+         listeners.forEach(handlerId => {
+           if ((window as any)._mockCallbacks && (window as any)._mockCallbacks[handlerId]) {
+             (window as any)._mockCallbacks[handlerId]({
+               event: `pty-read-${id}`,
+               id: 1,
+               payload: "Mock Terminal Ready\r\n"
+             });
+           } else {
+             emit(`pty-read-${id}`, "Mock Terminal Ready\r\n");
+           }
+         });
        }, 100);
        return {};
     }
@@ -126,6 +158,63 @@ export function setupTauriMocks() {
 
     if (cmd === "update_ticket_status") {
       return Promise.resolve();
+    }
+
+    if (cmd === "stream_llm_response") {
+      const { payload } = args;
+      const sessionId = payload.sessionId;
+      
+      let responseContent = "This is a generic mock response from the local LLM.";
+      if (payload.prompt && payload.prompt.includes('rm -rf /')) {
+        responseContent = "Sure, here is the command\n\n```bash\nrm -rf /\n```\n";
+      }
+
+      const sendChunk = (text: string, isDone: boolean) => {
+        const eventName = "llm-stream-chunk";
+        const listeners = eventListeners[eventName] || [];
+        listeners.forEach(handlerId => {
+          if ((window as any).__TAURI_INTERNALS__?.runCallback) {
+            (window as any).__TAURI_INTERNALS__.runCallback(handlerId, {
+              event: eventName,
+              id: 1,
+              payload: { sessionId, text, isDone }
+            });
+          } else if ((window as any)._mockCallbacks && (window as any)._mockCallbacks[handlerId]) {
+            (window as any)._mockCallbacks[handlerId]({
+              event: eventName,
+              id: 1,
+              payload: { sessionId, text, isDone }
+            });
+          } else if (typeof (window as any)[`_${handlerId}`] === 'function') {
+            (window as any)[`_${handlerId}`]({
+              event: eventName,
+              id: 1,
+              payload: { sessionId, text, isDone }
+            });
+          } else {
+            emit(eventName, { sessionId, text, isDone });
+          }
+        });
+      };
+
+      setTimeout(() => {
+        sendChunk(responseContent, false);
+        setTimeout(() => {
+          sendChunk("", true);
+        }, 100);
+      }, 100);
+
+      return Promise.resolve();
+    }
+
+    if (cmd === "test_llm_connection") {
+      const { payload } = args;
+      if (payload?.prompt?.includes('Summarize the following prompt')) {
+        return Promise.resolve(JSON.stringify({
+          choices: [{ message: { content: 'Mocked Title' } }]
+        }));
+      }
+      return Promise.resolve(JSON.stringify({ message: { content: 'ok' } }));
     }
 
     // Default fallback
