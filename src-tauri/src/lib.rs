@@ -1,6 +1,7 @@
 mod ipc;
 pub mod logger;
 mod pty;
+pub mod db;
 
 use std::sync::Mutex;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu, SubmenuBuilder};
@@ -174,8 +175,14 @@ pub fn run() {
             }
             app.manage(Mutex::new(pty::PtyManager::new()));
 
-            let handle = app.handle();
-            let menu = build_menu(handle, &[])?;
+            let handle = app.handle().clone();
+            let pool = tauri::async_runtime::block_on(async move {
+                db::init_db(&handle).await.expect("Failed to initialize database")
+            });
+            app.manage(pool);
+
+            let handle_clone = app.handle();
+            let menu = build_menu(handle_clone, &[])?;
             app.set_menu(menu)?;
 
             app.on_menu_event(move |app_handle, event| {
