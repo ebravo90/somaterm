@@ -13,7 +13,7 @@ export const filterTickets = (tickets: KanbanTicket[], filters: TicketFilters): 
   return tickets.filter(t => {
     const matchesSearch = !filters.searchQuery || 
       t.title.toLowerCase().includes(filters.searchQuery.toLowerCase()) || 
-      t.description.toLowerCase().includes(filters.searchQuery.toLowerCase());
+      (t.description || '').toLowerCase().includes(filters.searchQuery.toLowerCase());
     
     const matchesPriority = filters.priority === 'All' || t.priority === filters.priority;
     const matchesType = filters.type === 'All' || t.type === filters.type;

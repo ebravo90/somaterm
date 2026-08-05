@@ -21,7 +21,6 @@ pub struct Ticket {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateTicketPayload {
-    pub id: String,
     pub title: String,
     pub description: Option<String>,
     pub status: String,
@@ -45,6 +44,15 @@ pub async fn create_ticket(
     payload: CreateTicketPayload,
     pool: State<'_, SqlitePool>,
 ) -> Result<Ticket, String> {
+    let next_id: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(CAST(SUBSTR(id, 6) AS INTEGER)), 0) + 1 FROM tickets"
+    )
+    .fetch_one(&*pool)
+    .await
+    .unwrap_or(1);
+
+    let new_id = format!("SOMA-{}", next_id);
+
     sqlx::query(
         r#"
         INSERT INTO tickets (
@@ -53,7 +61,7 @@ pub async fn create_ticket(
             ?, ?, ?, ?, ?, ?, ?, ?, ?
         )
         "#)
-        .bind(&payload.id)
+        .bind(&new_id)
         .bind(&payload.title)
         .bind(&payload.description)
         .bind(&payload.status)
@@ -67,7 +75,7 @@ pub async fn create_ticket(
         .map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, Ticket>("SELECT * FROM tickets WHERE id = ?")
-        .bind(&payload.id)
+        .bind(&new_id)
         .fetch_one(&*pool)
         .await
         .map_err(|e| e.to_string())
@@ -87,4 +95,76 @@ pub async fn update_ticket_status(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    #[tokio::test]
+    async fn test_valid_ticket_insertion() {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+
+        let result = sqlx::query(
+            r#"
+            INSERT INTO tickets (
+                id, title, description, status, priority, ticket_type, cycle_id, assignee_id, reporter_id
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            "#,
+        )
+        .bind("SOMA-TEST-1")
+        .bind("Test Ticket")
+        .bind("A description")
+        .bind("Open")
+        .bind("High")
+        .bind("Bug")
+        .bind::<Option<String>>(None)
+        .bind::<Option<String>>(None)
+        .bind::<Option<String>>(None)
+        .execute(&pool)
+        .await;
+
+        assert!(result.is_ok(), "Valid ticket insertion should succeed");
+    }
+
+    #[tokio::test]
+    async fn test_invalid_ticket_insertion_fails_constraints() {
+        let pool = SqlitePoolOptions::new()
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+
+        let result = sqlx::query(
+            r#"
+            INSERT INTO tickets (
+                id, title, description, status, priority, ticket_type, cycle_id, assignee_id, reporter_id
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            "#,
+        )
+        .bind("SOMA-TEST-2")
+        .bind("Invalid Ticket")
+        .bind("Should fail due to invalid status")
+        .bind("InvalidStatus") // This should trigger CHECK constraint failure
+        .bind("High")
+        .bind("Bug")
+        .bind::<Option<String>>(None)
+        .bind::<Option<String>>(None)
+        .bind::<Option<String>>(None)
+        .execute(&pool)
+        .await;
+
+        assert!(result.is_err(), "Insertion with invalid status must fail");
+    }
 }

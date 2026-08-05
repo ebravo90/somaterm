@@ -106,6 +106,28 @@ export function setupTauriMocks() {
       };
     }
 
+    if (cmd === "fetch_kanban_board") {
+      return Promise.resolve([]);
+    }
+
+    if (cmd === "create_ticket") {
+      return Promise.resolve({
+        id: "SOMA-1",
+        title: args?.payload?.title,
+        description: args?.payload?.description,
+        status: args?.payload?.status,
+        priority: args?.payload?.priority,
+        ticketType: args?.payload?.ticketType,
+        cycleId: args?.payload?.cycleId,
+        assigneeId: args?.payload?.assigneeId,
+        reporterId: args?.payload?.reporterId
+      });
+    }
+
+    if (cmd === "update_ticket_status") {
+      return Promise.resolve();
+    }
+
     // Default fallback
     return {};
   });

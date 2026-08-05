@@ -102,6 +102,7 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
 
   fetchKanbanBoard: async () => {
     try {
+      if (!isTauri) return;
       const backendTickets = await safeInvoke<any[]>('fetch_kanban_board');
       const tickets: KanbanTicket[] = backendTickets.map(t => ({
         id: t.id,
@@ -138,9 +139,7 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
 
   addKanbanTicket: async (ticket) => {
     try {
-      const newId = `SOMA-${crypto.randomUUID().split('-')[0].toUpperCase()}`;
       const payload = {
-        id: newId,
         title: ticket.title,
         description: ticket.description || null,
         status: ticket.status,
