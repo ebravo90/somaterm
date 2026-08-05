@@ -84,9 +84,13 @@ export function NativeWebview({ id, url }: NativeWebviewProps) {
     }
 
     // Listen to explicit OS window resizes (maximize, restore, etc.)
-    getCurrentWindow().onResized(triggerSync).then(unlisten => {
-      unlistenResize = unlisten;
-    }).catch(console.error);
+    try {
+      getCurrentWindow().onResized(triggerSync).then(unlisten => {
+        unlistenResize = unlisten;
+      }).catch(console.error);
+    } catch (e) {
+      console.warn("Failed to listen to window resize events", e);
+    }
 
     // Also listen to standard DOM resize as a fallback
     window.addEventListener('resize', triggerSync);
