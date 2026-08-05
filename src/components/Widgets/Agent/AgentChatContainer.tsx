@@ -63,34 +63,18 @@ function AgentSettingsItem({
   const handleVerify = async () => {
     updateAgent(agent.id, { status: 'checking' });
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      };
-      if (agent.apiKey && agent.apiKey.trim() !== '') {
-        headers['Authorization'] = `Bearer ${agent.apiKey.trim()}`;
-      }
-
-      const verifyPayload: Record<string, unknown> = {
-        model: agent.modelName.trim(),
-        messages: [{ role: 'system', content: 'hello' }],
-        max_tokens: 1
-      };
-      
-      if (agent.type === 'local') {
-        verifyPayload.keep_alive = 0;
-      }
-
-      const res = await fetch(agent.endpoint.trim(), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(verifyPayload)
+      const provider = agent.type === 'local' ? 'ollama' : 'openai';
+      await invoke('test_llm_connection', {
+        url: agent.endpoint.trim(),
+        payload: {
+          sessionId: 'verify',
+          provider,
+          agentId: agent.id,
+          model: agent.modelName.trim(),
+          prompt: "hello"
+        }
       });
-
-      if (res.ok) {
-        updateAgent(agent.id, { status: 'online' });
-      } else {
-        updateAgent(agent.id, { status: 'offline' });
-      }
+      updateAgent(agent.id, { status: 'online' });
     } catch (e) {
       updateAgent(agent.id, { status: 'offline' });
     }

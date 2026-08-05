@@ -46,7 +46,9 @@ export interface AgentSlice {
   setContextPickerMode: (active: boolean) => void;
 }
 
-import { streamLLMResponse, generateTitleWithLLM } from '../../services/llmService';
+import { generateTitleWithLLM, buildSystemPrompt } from '../../services/llmService';
+import { listen } from '@tauri-apps/api/event';
+import type { UnlistenFn } from '@tauri-apps/api/event';
 
 export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set, get) => ({
   sessions: [],
@@ -280,13 +282,30 @@ export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set
     try {
       get().addMessageToActiveSession({ role: 'assistant', content: '' });
 
-      await streamLLMResponse(
-        activeAgent,
-        networkMessages,
-        abortController.signal,
-        (chunk) => get().appendMessageChunkToActiveSession(chunk),
-        (level, msg) => get().addLog({ level, source: 'Agent', message: msg })
-      );
+      const provider = activeAgent.type === 'local' ? 'ollama' : 'openai';
+      const systemPrompt = buildSystemPrompt();
+      const promptText = `${systemPrompt}\n\n` + networkMessages.map(m => `${m.role.toUpperCase()}:\n${m.content}`).join('\n\n');
+
+      const unlisten = await listen<{ sessionId: string, text: string, isDone: boolean }>('llm-stream-chunk', (event) => {
+        if (event.payload.sessionId !== sessionId) return;
+        
+        if (event.payload.isDone) {
+          unlisten();
+        } else {
+          get().appendMessageChunkToActiveSession(event.payload.text);
+        }
+      });
+
+      await invoke('stream_llm_response', {
+        url: activeAgent.endpoint.trim(),
+        payload: {
+          sessionId,
+          provider,
+          agentId: activeAgent.id,
+          model: activeAgent.modelName.trim(),
+          prompt: promptText
+        }
+      });
 
       const updatedState = get();
       if (updatedState.activeWidget?.type !== 'agent') {

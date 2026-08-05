@@ -1,4 +1,4 @@
-
+import { invoke } from '@tauri-apps/api/core';
 import type { AgentProfile } from '../types/store.types';
 
 /**
@@ -36,94 +36,7 @@ If the user's prompt includes a \`\`\`console block, treat it as the absolute so
   `.trim();
 }
 
-/**
- * Sends a message to the specified LLM agent and handles the streaming response.
- * 
- * @param activeAgent - The active agent profile containing the endpoint and credentials.
- * @param networkMessages - The complete history of messages to send to the agent, including the new user message.
- * @param signal - An AbortSignal to allow cancelling the network request.
- * @param onChunk - Callback executed for every chunk of text received from the LLM stream.
- * @param onLog - Callback for internal system logs (e.g. cold start notifications).
- * 
- * @throws {Error} If the network request fails or returns a non-OK status.
- */
-export async function streamLLMResponse(
-  activeAgent: AgentProfile,
-  networkMessages: { role: string, content: string }[],
-  signal: AbortSignal,
-  onChunk: (chunk: string) => void,
-  onLog: (level: 'INFO' | 'WARN' | 'ERROR', msg: string) => void
-): Promise<void> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (activeAgent.apiKey && activeAgent.apiKey.trim() !== '') {
-    headers['Authorization'] = `Bearer ${activeAgent.apiKey.trim()}`;
-  }
 
-  const payload: Record<string, unknown> = {
-    model: activeAgent.modelName.trim(),
-    messages: [{ role: 'system', content: buildSystemPrompt() }, ...networkMessages],
-    stream: true
-  };
-  
-  if (activeAgent.type === 'local') {
-    payload.keep_alive = 0;
-    onLog('INFO', '[Agent Lifecycle] Waking up local model. Expect cold start delay...');
-  }
-
-  onLog('INFO', `[Network] Dispatching generation request to: ${activeAgent.endpoint.trim()}`);
-  
-  const response = await fetch(activeAgent.endpoint.trim(), {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-    signal
-  });
-
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.statusText}`);
-  }
-
-  if (!response.body) throw new Error("No response body");
-
-  onLog('INFO', '[Agent Lifecycle] Stream started. Model loaded in RAM.');
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  
-  let buffer = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split('\n');
-    buffer = parts.pop() || '';
-    
-    for (const part of parts) {
-      const line = part.trim();
-      if (!line || line === 'data: [DONE]') continue;
-      
-      let jsonStr = line;
-      if (line.startsWith('data: ')) {
-        jsonStr = line.replace('data: ', '');
-      }
-      
-      try {
-        const data = JSON.parse(jsonStr);
-        const contentChunk = data.choices?.[0]?.delta?.content || data.message?.content || '';
-        if (contentChunk) {
-          onChunk(contentChunk);
-        }
-      } catch (e) {
-        // Ignore JSON parse errors for incomplete chunks
-      }
-    }
-  }
-
-  if (activeAgent.type === 'local') {
-    onLog('INFO', '[Agent Lifecycle] Stream complete. Ollama auto-unloading model...');
-  }
-}
 
 /**
  * Requests a short chat title from the LLM based on the user's first message.
@@ -138,32 +51,21 @@ export async function generateTitleWithLLM(
   activeAgent: AgentProfile,
   firstUserMessage: string
 ): Promise<string> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (activeAgent.apiKey && activeAgent.apiKey.trim() !== '') {
-    headers['Authorization'] = `Bearer ${activeAgent.apiKey.trim()}`;
-  }
-  const titlePayload: Record<string, unknown> = {
-    model: activeAgent.modelName.trim(),
-    messages: [{ role: 'user', content: "Summarize the following prompt in 3 to 5 words to use as a chat title. Do not use quotes or punctuation: " + firstUserMessage }],
-    stream: false
-  };
-  if (activeAgent.type === 'local') {
-    titlePayload.keep_alive = 0;
-  }
-
-  const titleResponse = await fetch(activeAgent.endpoint.trim(), {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(titlePayload),
-    signal: AbortSignal.timeout(10000)
+  const provider = activeAgent.type === 'local' ? 'ollama' : 'openai';
+  
+  const responseStr = await invoke<string>('test_llm_connection', {
+    url: activeAgent.endpoint.trim(),
+    payload: {
+      sessionId: 'title-gen',
+      provider,
+      agentId: activeAgent.id,
+      model: activeAgent.modelName.trim(),
+      prompt: "Summarize the following prompt in 3 to 5 words to use as a chat title. Do not use quotes or punctuation: " + firstUserMessage
+    }
   });
   
-  if (!titleResponse.ok) {
-    throw new Error(`API Error: ${titleResponse.statusText}`);
-  }
-  
-  const titleData = await titleResponse.json();
-  let generatedTitle = titleData.choices?.[0]?.message?.content || titleData.message?.content || 'New Chat';
+  const titleData = JSON.parse(responseStr);
+  let generatedTitle = titleData.choices?.[0]?.message?.content || titleData.response || titleData.message?.content || 'New Chat';
   generatedTitle = generatedTitle.replace(/["']/g, '').trim();
   
   return generatedTitle;
