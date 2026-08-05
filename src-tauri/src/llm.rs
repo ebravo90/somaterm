@@ -112,14 +112,27 @@ pub async fn stream_llm_response(
         })
     };
 
-    let response = request_builder
-        .json(&outgoing_json)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to send request: {}", e))?;
+    let response = match request_builder.json(&outgoing_json).send().await {
+        Ok(res) => res,
+        Err(e) => {
+            let error_msg = format!("Failed to send request: {}", e);
+            let _ = app_handle.emit("llm-stream-chunk", StreamChunk {
+                session_id: payload.session_id.clone(),
+                text: error_msg,
+                is_done: true,
+            });
+            return Ok(());
+        }
+    };
 
     if !response.status().is_success() {
-        return Err(format!("Server returned error status: {}", response.status()));
+        let error_msg = format!("Server returned error status: {}", response.status());
+        let _ = app_handle.emit("llm-stream-chunk", StreamChunk {
+            session_id: payload.session_id.clone(),
+            text: error_msg,
+            is_done: true,
+        });
+        return Ok(());
     }
 
     let mut stream = response.bytes_stream();
@@ -144,9 +157,15 @@ pub async fn stream_llm_response(
 
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
                         let mut content = String::new();
-                        // Ollama format
+                        // Ollama /api/generate format
                         if let Some(r) = json.get("response").and_then(|v| v.as_str()) {
                             content = r.to_string();
+                        }
+                        // Ollama /api/chat format
+                        else if let Some(msg) = json.get("message") {
+                            if let Some(c) = msg.get("content").and_then(|v| v.as_str()) {
+                                content = c.to_string();
+                            }
                         }
                         // OpenAI format
                         else if let Some(choices) = json.get("choices").and_then(|v| v.as_array()) {
