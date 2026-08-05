@@ -29,8 +29,13 @@ export const KanbanWidget: React.FC = () => {
     setKanbanSearchQuery,
     userAvatar,
     setUserAvatar,
-    agents
+    agents,
+    fetchKanbanBoard
   } = useAppStore();
+
+  useEffect(() => {
+    fetchKanbanBoard();
+  }, [fetchKanbanBoard]);
 
   const availableActors = ['Human Orchestrator', ...agents.filter(a => a.status === 'online').map(a => a.displayName)];
 

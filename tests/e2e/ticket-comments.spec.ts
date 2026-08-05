@@ -16,14 +16,14 @@ describe('Ticket Comments Tests', () => {
         });
         
         // 2. Create a ticket programmatically
-        await browser.execute(() => {
+        await browser.executeAsync((done) => {
             (window as any).__store.getState().addKanbanTicket({
                 title: 'Test Ticket Comments',
                 description: 'Testing comments functionality',
                 status: 'Open',
                 priority: 'High',
                 type: 'Bug'
-            });
+            }).then(() => done());
         });
 
         // 3. Get ticket ID and open it

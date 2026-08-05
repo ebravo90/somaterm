@@ -16,14 +16,14 @@ describe('Ticket History Log Tests', () => {
         });
 
         // 2. Create a ticket programmatically
-        await browser.execute(() => {
+        await browser.executeAsync((done) => {
             (window as any).__store.getState().addKanbanTicket({
                 title: 'History Test Ticket',
                 description: 'Testing history log',
                 status: 'Open',
                 priority: 'High',
                 type: 'Bug'
-            });
+            }).then(() => done());
         });
 
         // 3. Update the ticket
@@ -32,10 +32,10 @@ describe('Ticket History Log Tests', () => {
             return tickets[0].id;
         });
 
-        await browser.execute((id) => {
+        await browser.executeAsync((id, done) => {
             (window as any).__store.getState().updateKanbanTicket(id, {
                 status: 'In Progress'
-            });
+            }).then(() => done());
         }, ticketId);
 
         // 4. Verify the state has the history events

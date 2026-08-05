@@ -26,7 +26,7 @@ describe('Ticket Reporter and Assignee Tests', () => {
         });
         
         // 2. Create a ticket programmatically with reporter and assignee
-        await browser.execute(() => {
+        await browser.executeAsync((done) => {
             (window as any).__store.getState().addKanbanTicket({
                 title: 'Test Ticket Assignee',
                 description: 'Testing reporter and assignee',
@@ -35,7 +35,7 @@ describe('Ticket Reporter and Assignee Tests', () => {
                 type: 'Bug',
                 reporter: 'Human Orchestrator',
                 assignee: 'Local Llama 3'
-            });
+            }).then(() => done());
         });
 
         // 3. Get ticket ID and open it
@@ -59,11 +59,11 @@ describe('Ticket Reporter and Assignee Tests', () => {
         );
 
         // 5. Test updating them
-        await browser.execute((id) => {
+        await browser.executeAsync((id, done) => {
             (window as any).__store.getState().updateKanbanTicket(id, {
                 reporter: 'Local Llama 3',
                 assignee: 'Human Orchestrator'
-            });
+            }).then(() => done());
         }, ticketId);
 
         await browser.waitUntil(

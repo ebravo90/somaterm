@@ -1,4 +1,25 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: vi.fn(async (cmd, args) => {
+    if (cmd === 'create_ticket') {
+      return {
+        id: args.payload.id,
+        title: args.payload.title,
+        description: args.payload.description,
+        status: args.payload.status,
+        priority: args.payload.priority,
+        ticket_type: args.payload.ticket_type,
+        cycle_id: args.payload.cycle_id,
+        assignee_id: args.payload.assignee_id,
+        reporter_id: args.payload.reporter_id,
+      };
+    }
+    if (cmd === 'fetch_kanban_board') return [];
+    if (cmd === 'update_ticket_status') return null;
+    return null;
+  })
+}));
 import { useAppStore, type KanbanTicket } from '../useAppStore';
 import { filterTickets } from '../../utils/ticketFilters';
 
@@ -8,7 +29,7 @@ describe('ticketStore actions and filtering', () => {
     useAppStore.setState({ kanbanMockTickets: [] });
   });
 
-  it('addKanbanTicket creates a new ticket with default reporter as Human Orchestrator', () => {
+  it('addKanbanTicket creates a new ticket with default reporter as Human Orchestrator', async () => {
     const newTicket: Omit<KanbanTicket, 'id'> = {
       title: 'New Feature',
       description: 'Implement a new feature',
@@ -18,7 +39,7 @@ describe('ticketStore actions and filtering', () => {
       history: []
     };
 
-    useAppStore.getState().addKanbanTicket(newTicket);
+    await useAppStore.getState().addKanbanTicket(newTicket);
     const tickets = useAppStore.getState().kanbanMockTickets;
     
     expect(tickets).toHaveLength(1);

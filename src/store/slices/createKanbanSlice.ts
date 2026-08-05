@@ -1,9 +1,34 @@
 import type { StateCreator } from 'zustand';
+import { invoke } from '@tauri-apps/api/core';
 import type { 
   AppState, KanbanTicket, KanbanCycle, KanbanNavState, 
   TicketLink, TicketRelation 
 } from '../../types/store.types';
 import { generateUpdatedTicketsWithHistory } from '../../utils/kanbanUtils';
+
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+const safeInvoke = async <T>(cmd: string, args?: any): Promise<T> => {
+  if (!isTauri) {
+    if (cmd === 'fetch_kanban_board') return [] as unknown as T;
+    if (cmd === 'create_ticket') {
+      return {
+        id: args?.payload?.id,
+        title: args?.payload?.title,
+        description: args?.payload?.description,
+        status: args?.payload?.status,
+        priority: args?.payload?.priority,
+        ticket_type: args?.payload?.ticket_type,
+        cycle_id: args?.payload?.cycle_id,
+        assignee_id: args?.payload?.assignee_id,
+        reporter_id: args?.payload?.reporter_id,
+      } as unknown as T;
+    }
+    if (cmd === 'update_ticket_status') return null as unknown as T;
+    return null as unknown as T;
+  }
+  return invoke<T>(cmd, args);
+};
 
 export interface KanbanSlice {
   isKanbanEnabled: boolean;
@@ -24,8 +49,9 @@ export interface KanbanSlice {
   setKanbanActiveCycle: (cycleId: string) => void;
   navigateKanbanBack: () => void;
   navigateKanbanForward: () => void;
-  updateKanbanTicket: (ticketId: string, updates: Partial<KanbanTicket>) => void;
-  addKanbanTicket: (ticket: Omit<KanbanTicket, 'id'>) => void;
+  fetchKanbanBoard: () => Promise<void>;
+  updateKanbanTicket: (ticketId: string, updates: Partial<KanbanTicket>) => Promise<void>;
+  addKanbanTicket: (ticket: Omit<KanbanTicket, 'id'>) => Promise<void>;
   addComment: (ticketId: string, content: string, author: string, role: 'human' | 'agent') => void;
   linkTickets: (sourceId: string, targetId: string, relation: TicketRelation) => void;
 }
@@ -34,19 +60,10 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
   isKanbanEnabled: false,
   toggleKanban: (enabled) => set({ isKanbanEnabled: enabled }),
   
-  kanbanMockCycles: [
-    { id: 'CYCLE-1', name: 'Somaterm MVP', status: 'Active', targetDate: '2026-08-15', description: 'This cycle covers the foundational architecture of the Somaterm agentic environment. It includes the Kanban UI, local database setup, and basic state management.' },
-    { id: 'CYCLE-2', name: 'Phase 2: IDE Features', status: 'On Hold', targetDate: '2026-09-01', description: 'This upcoming cycle focuses on expanding the IDE capabilities, including advanced code editing, a native file explorer, and tighter LLM integration for automated test generation.' },
-    { id: 'CYCLE-3', name: 'Foundation Polish', status: 'Completed', targetDate: '2026-07-30', description: 'Initial work to set up Tauri, React, Tailwind, and basic window chrome.' },
-  ],
-  kanbanActiveCycleId: 'CYCLE-1',
+  kanbanMockCycles: [],
+  kanbanActiveCycleId: null,
   
-  kanbanMockTickets: [
-    { id: 'SOMA-1', title: 'Implement Kanban UI', status: 'In Progress', description: 'Create the base structure for the Kanban widget.', type: 'Story', priority: 'High', cycleId: 'CYCLE-1', assignee: 'Human Orchestrator', reporter: 'Human Orchestrator', history: [] },
-    { id: 'SOMA-2', title: 'Add Kanban State', status: 'Ready', description: 'Add mock state and navigation history to Zustand.', type: 'Task', priority: 'Medium', cycleId: 'CYCLE-1', assignee: 'Human Orchestrator', reporter: 'Human Orchestrator', history: [] },
-    { id: 'SOMA-3', title: 'Fix Header Alignment', status: 'Blocked', description: 'The header buttons are slightly off-center on Windows.', type: 'Bug', priority: 'Low', cycleId: 'CYCLE-2', assignee: 'Human Orchestrator', reporter: 'Human Orchestrator', history: [] },
-    { id: 'SOMA-4', title: 'Research new AI model', status: 'Open', description: 'Check out Llama 3 for local inference.', type: 'Spike', priority: 'Critical', cycleId: 'CYCLE-1', assignee: undefined, reporter: 'Human Orchestrator', history: [] },
-  ],
+  kanbanMockTickets: [],
   
   setKanbanSearchQuery: (query) => set({ kanbanSearchQuery: query }),
   kanbanCurrentSection: 'board',
@@ -83,30 +100,85 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
     };
   }),
 
-  updateKanbanTicket: (ticketId, updates) => set((state) => ({
-    kanbanMockTickets: generateUpdatedTicketsWithHistory(state.kanbanMockTickets, ticketId, updates)
-  })),
+  fetchKanbanBoard: async () => {
+    try {
+      const backendTickets = await safeInvoke<any[]>('fetch_kanban_board');
+      const tickets: KanbanTicket[] = backendTickets.map(t => ({
+        id: t.id,
+        title: t.title,
+        description: t.description || '',
+        status: t.status,
+        priority: t.priority,
+        type: t.ticket_type,
+        cycleId: t.cycle_id,
+        assignee: t.assignee_id,
+        reporter: t.reporter_id,
+        history: [],
+        comments: [],
+        links: []
+      }));
+      set({ kanbanMockTickets: tickets });
+    } catch (error) {
+      console.error('Failed to fetch kanban board:', error);
+    }
+  },
 
-  addKanbanTicket: (ticket) => set((state) => {
-    const newId = `SOMA-${state.kanbanMockTickets.length + 1}`;
-    const newTicket: KanbanTicket = {
-      ...ticket,
-      id: newId,
-      history: [{
-        id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: Date.now(),
-        actor: 'Human',
-        field: 'Created',
-        oldValue: '',
-        newValue: 'Ticket Created'
-      }],
-      comments: [],
-      reporter: ticket.reporter || 'Human Orchestrator'
-    };
-    return { 
-      kanbanMockTickets: [newTicket, ...state.kanbanMockTickets] 
-    };
-  }),
+  updateKanbanTicket: async (ticketId, updates) => {
+    set((state) => ({
+      kanbanMockTickets: generateUpdatedTicketsWithHistory(state.kanbanMockTickets, ticketId, updates)
+    }));
+    if (updates.status) {
+      try {
+        await safeInvoke('update_ticket_status', { id: ticketId, new_status: updates.status });
+      } catch (error) {
+        console.error('Failed to update ticket status:', error);
+      }
+    }
+  },
+
+  addKanbanTicket: async (ticket) => {
+    try {
+      const newId = `SOMA-${Date.now()}`;
+      const payload = {
+        id: newId,
+        title: ticket.title,
+        description: ticket.description || null,
+        status: ticket.status,
+        priority: ticket.priority,
+        ticket_type: ticket.type,
+        cycle_id: ticket.cycleId || null,
+        assignee_id: ticket.assignee || null,
+        reporter_id: ticket.reporter || 'Human Orchestrator'
+      };
+      const backendTicket = await safeInvoke<any>('create_ticket', { payload });
+      const newTicket: KanbanTicket = {
+        id: backendTicket.id,
+        title: backendTicket.title,
+        description: backendTicket.description || '',
+        status: backendTicket.status,
+        priority: backendTicket.priority,
+        type: backendTicket.ticket_type,
+        cycleId: backendTicket.cycle_id,
+        assignee: backendTicket.assignee_id,
+        reporter: backendTicket.reporter_id,
+        history: [{
+          id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: Date.now(),
+          actor: 'Human',
+          field: 'Created',
+          oldValue: '',
+          newValue: 'Ticket Created'
+        }],
+        comments: [],
+        links: []
+      };
+      set((state) => ({ 
+        kanbanMockTickets: [newTicket, ...state.kanbanMockTickets] 
+      }));
+    } catch (error) {
+      console.error('Failed to create ticket:', error);
+    }
+  },
   
   addComment: (ticketId, content, author, role) => set((state) => {
     const ticket = state.kanbanMockTickets.find(t => t.id === ticketId);
