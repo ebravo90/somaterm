@@ -1,8 +1,9 @@
 import type { StateCreator } from 'zustand';
 import type { 
   AppState, KanbanTicket, KanbanCycle, KanbanNavState, 
-  TicketHistoryEvent, TicketLink, TicketRelation 
+  TicketLink, TicketRelation 
 } from '../../types/store.types';
+import { generateUpdatedTicketsWithHistory } from '../../utils/kanbanUtils';
 
 export interface KanbanSlice {
   isKanbanEnabled: boolean;
@@ -82,35 +83,9 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
     };
   }),
 
-  updateKanbanTicket: (ticketId, updates) => set((state) => {
-    const timestamp = Date.now();
-    return {
-      kanbanMockTickets: state.kanbanMockTickets.map(t => {
-        if (t.id !== ticketId) return t;
-        
-        const newHistoryEvents: TicketHistoryEvent[] = [];
-        Object.entries(updates).forEach(([field, newValue]) => {
-          const oldValue = (t as unknown as Record<string, unknown>)[field];
-          if (oldValue !== newValue) {
-            newHistoryEvents.push({
-              id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              timestamp,
-              actor: 'Human',
-              field,
-              oldValue: String(oldValue || ''),
-              newValue: String(newValue || '')
-            });
-          }
-        });
-
-        return { 
-          ...t, 
-          ...updates, 
-          history: [...newHistoryEvents, ...(t.history || [])]
-        };
-      })
-    };
-  }),
+  updateKanbanTicket: (ticketId, updates) => set((state) => ({
+    kanbanMockTickets: generateUpdatedTicketsWithHistory(state.kanbanMockTickets, ticketId, updates)
+  })),
 
   addKanbanTicket: (ticket) => set((state) => {
     const newId = `SOMA-${state.kanbanMockTickets.length + 1}`;
