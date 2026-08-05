@@ -113,7 +113,7 @@ pub async fn stream_llm_response(
         })
     };
 
-    let response = match request_builder.json(&outgoing_json).send().await {
+    let response = match request_builder.json(&outgoing_json).send().await.and_then(|res| res.error_for_status()) {
         Ok(res) => res,
         Err(e) => {
             eprintln!("Reqwest error: {:?}", e);
@@ -126,16 +126,6 @@ pub async fn stream_llm_response(
             return Ok(());
         }
     };
-
-    if !response.status().is_success() {
-        let error_msg = format!("Server returned error status: {}", response.status());
-        let _ = app_handle.emit("llm-stream-chunk", StreamChunk {
-            session_id: payload.session_id.clone(),
-            text: error_msg,
-            is_done: true,
-        });
-        return Ok(());
-    }
 
     let mut stream = response.bytes_stream();
     let mut buffer = String::new();
