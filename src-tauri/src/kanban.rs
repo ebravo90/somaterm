@@ -3,6 +3,7 @@ use sqlx::{FromRow, SqlitePool};
 use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
+#[serde(rename_all = "camelCase")]
 pub struct Ticket {
     pub id: String,
     pub title: String,
@@ -18,6 +19,7 @@ pub struct Ticket {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreateTicketPayload {
     pub id: String,
     pub title: String,

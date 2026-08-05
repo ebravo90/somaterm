@@ -9,10 +9,10 @@ vi.mock('@tauri-apps/api/core', () => ({
         description: args.payload.description,
         status: args.payload.status,
         priority: args.payload.priority,
-        ticket_type: args.payload.ticket_type,
-        cycle_id: args.payload.cycle_id,
-        assignee_id: args.payload.assignee_id,
-        reporter_id: args.payload.reporter_id,
+        ticketType: args.payload.ticketType,
+        cycleId: args.payload.cycleId,
+        assigneeId: args.payload.assigneeId,
+        reporterId: args.payload.reporterId,
       };
     }
     if (cmd === 'fetch_kanban_board') return [];

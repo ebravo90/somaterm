@@ -18,10 +18,10 @@ const safeInvoke = async <T>(cmd: string, args?: any): Promise<T> => {
         description: args?.payload?.description,
         status: args?.payload?.status,
         priority: args?.payload?.priority,
-        ticket_type: args?.payload?.ticket_type,
-        cycle_id: args?.payload?.cycle_id,
-        assignee_id: args?.payload?.assignee_id,
-        reporter_id: args?.payload?.reporter_id,
+        ticketType: args?.payload?.ticketType,
+        cycleId: args?.payload?.cycleId,
+        assigneeId: args?.payload?.assigneeId,
+        reporterId: args?.payload?.reporterId,
       } as unknown as T;
     }
     if (cmd === 'update_ticket_status') return null as unknown as T;
@@ -109,10 +109,10 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
         description: t.description || '',
         status: t.status,
         priority: t.priority,
-        type: t.ticket_type,
-        cycleId: t.cycle_id,
-        assignee: t.assignee_id,
-        reporter: t.reporter_id,
+        type: t.ticketType,
+        cycleId: t.cycleId,
+        assignee: t.assigneeId,
+        reporter: t.reporterId,
         history: [],
         comments: [],
         links: []
@@ -145,10 +145,10 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
         description: ticket.description || null,
         status: ticket.status,
         priority: ticket.priority,
-        ticket_type: ticket.type,
-        cycle_id: ticket.cycleId || null,
-        assignee_id: ticket.assignee || null,
-        reporter_id: ticket.reporter || 'Human Orchestrator'
+        ticketType: ticket.type,
+        cycleId: ticket.cycleId || null,
+        assigneeId: ticket.assignee || null,
+        reporterId: ticket.reporter || 'Human Orchestrator'
       };
       const backendTicket = await safeInvoke<any>('create_ticket', { payload });
       const newTicket: KanbanTicket = {
@@ -157,10 +157,10 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
         description: backendTicket.description || '',
         status: backendTicket.status,
         priority: backendTicket.priority,
-        type: backendTicket.ticket_type,
-        cycleId: backendTicket.cycle_id,
-        assignee: backendTicket.assignee_id,
-        reporter: backendTicket.reporter_id,
+        type: backendTicket.ticketType,
+        cycleId: backendTicket.cycleId,
+        assignee: backendTicket.assigneeId,
+        reporter: backendTicket.reporterId,
         history: [{
           id: `hist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           timestamp: Date.now(),
