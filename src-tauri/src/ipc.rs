@@ -133,11 +133,6 @@ pub fn save_agents(
 #[tauri::command]
 pub fn save_history(payload: String, app_handle: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
-    println!(
-        "Rust: save_history invoked. Payload size: {} bytes",
-        payload.len()
-    );
-
     let config_dir = app_handle
         .path()
         .app_config_dir()
@@ -150,15 +145,12 @@ pub fn save_history(payload: String, app_handle: tauri::AppHandle) -> Result<(),
         e.to_string()
     })?;
 
-    println!("Rust: Successfully saved history.json");
     Ok(())
 }
 
 #[tauri::command]
 pub fn load_history(app_handle: tauri::AppHandle) -> Result<String, String> {
     use tauri::Manager;
-    println!("Rust: load_history invoked.");
-
     let config_dir = app_handle
         .path()
         .app_config_dir()
@@ -175,7 +167,6 @@ pub fn load_history(app_handle: tauri::AppHandle) -> Result<String, String> {
         e.to_string()
     })?;
 
-    println!("Rust: Read history.json, size: {} bytes", data.len());
     Ok(data)
 }
 

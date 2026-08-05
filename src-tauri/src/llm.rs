@@ -90,7 +90,6 @@ pub async fn stream_llm_response(
     url: String,
     payload: LlmPayload,
 ) -> Result<(), String> {
-    println!(">>> RUNNING STREAM COMMAND: {:?}", payload);
     let actual_url = url.replace("localhost", "127.0.0.1");
     let mut request_builder = client.post(&actual_url);
 
@@ -128,10 +127,7 @@ pub async fn stream_llm_response(
     };
 
     let response = match request_builder.json(&outgoing_json).send().await.and_then(|res| res.error_for_status()) {
-        Ok(res) => {
-            println!(">>> CONNECTION ESTABLISHED! HTTP Status: {}", res.status());
-            res
-        },
+        Ok(res) => res,
         Err(e) => {
             eprintln!("Reqwest error: {:?}", e);
             let error_msg = format!("Failed to send request: {}", e);
