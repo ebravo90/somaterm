@@ -289,10 +289,12 @@ export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set
       const unlisten = await listen<{ sessionId: string, text: string, isDone: boolean }>('llm-stream-chunk', (event) => {
         if (event.payload.sessionId !== sessionId) return;
         
+        if (event.payload.text) {
+          get().appendMessageChunkToActiveSession(event.payload.text);
+        }
+        
         if (event.payload.isDone) {
           unlisten();
-        } else {
-          get().appendMessageChunkToActiveSession(event.payload.text || "");
         }
       });
 
@@ -318,7 +320,9 @@ export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set
         get().addLog({ level: 'ERROR', source: 'Agent', message: '[Agent Lifecycle] Stream aborted/failed. Memory released.' });
       }
       if (err.name !== 'AbortError') {
-        console.error("FETCH ERROR", err); get().addMessageToActiveSession({ role: 'assistant', content: `Error: ${err.message || String(err)}` });
+        console.error("FETCH ERROR", err);
+        get().addLog({ level: 'ERROR', source: 'Agent', message: `Stream invocation failed: ${err.message || String(err)}` });
+        get().appendMessageChunkToActiveSession(`\n\n**Error:** ${err.message || String(err)}`);
       }
     } finally {
       const finalState = get();

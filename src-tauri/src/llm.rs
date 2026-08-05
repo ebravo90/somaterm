@@ -82,6 +82,7 @@ pub async fn stream_llm_response(
     url: String,
     payload: LlmPayload,
 ) -> Result<(), String> {
+    println!(">>> RUNNING STREAM COMMAND: {:?}", payload);
     let mut request_builder = client.post(&url);
 
     let is_remote = payload.provider.to_lowercase() != "ollama" 
@@ -115,6 +116,7 @@ pub async fn stream_llm_response(
     let response = match request_builder.json(&outgoing_json).send().await {
         Ok(res) => res,
         Err(e) => {
+            eprintln!("Reqwest error: {:?}", e);
             let error_msg = format!("Failed to send request: {}", e);
             let _ = app_handle.emit("llm-stream-chunk", StreamChunk {
                 session_id: payload.session_id.clone(),
