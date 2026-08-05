@@ -235,7 +235,8 @@ pub fn run() {
             kanban::fetch_kanban_board,
             kanban::create_ticket,
             kanban::update_ticket_status,
-            llm::test_llm_connection
+            llm::test_llm_connection,
+            llm::stream_llm_response
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
