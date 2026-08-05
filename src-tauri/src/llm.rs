@@ -47,7 +47,7 @@ pub async fn test_llm_connection(
         }
     }
 
-    let outgoing_json = if is_remote || payload.provider.to_lowercase() == "openai" {
+    let outgoing_json = if actual_url.contains("/api/chat") || is_remote || payload.provider.to_lowercase() == "openai" {
         serde_json::json!({
             "model": payload.model,
             "messages": [{"role": "user", "content": payload.prompt}],
@@ -103,7 +103,7 @@ pub async fn stream_llm_response(
         }
     }
 
-    let outgoing_json = if is_remote || payload.provider.to_lowercase() == "openai" {
+    let outgoing_json = if actual_url.contains("/api/chat") || is_remote || payload.provider.to_lowercase() == "openai" {
         serde_json::json!({
             "model": payload.model,
             "messages": [{"role": "user", "content": payload.prompt}],
