@@ -138,7 +138,7 @@ export const createKanbanSlice: StateCreator<AppState, [], [], KanbanSlice> = (s
 
   addKanbanTicket: async (ticket) => {
     try {
-      const newId = `SOMA-${Date.now()}`;
+      const newId = `SOMA-${crypto.randomUUID().split('-')[0].toUpperCase()}`;
       const payload = {
         id: newId,
         title: ticket.title,
