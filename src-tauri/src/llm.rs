@@ -17,8 +17,10 @@ pub struct LlmPayload {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct StreamChunk {
+    #[serde(rename = "sessionId")]
     pub session_id: String,
     pub text: String,
+    #[serde(rename = "isDone")]
     pub is_done: bool,
 }
 
@@ -186,6 +188,8 @@ pub async fn stream_llm_response(
                             }
 
                             if !content.is_empty() {
+                                print!("{}", content);
+                                let _ = std::io::Write::flush(&mut std::io::stdout());
                                 let _ = app_handle.emit("llm-stream-chunk", StreamChunk {
                                     session_id: payload.session_id.clone(),
                                     text: content,
