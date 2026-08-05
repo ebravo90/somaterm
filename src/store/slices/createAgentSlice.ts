@@ -287,7 +287,6 @@ export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set
 
       const unlisten = await listen<{ sessionId: string, text: string, isDone: boolean }>('llm-stream-chunk', (event) => {
         console.log("RECEIVED STREAM EVENT IN FRONTEND:", event.payload);
-        const { sessionId: incomingSessionId, text, isDone } = event.payload;
         
         if (event.payload.text) {
           get().appendMessageChunkToActiveSession(event.payload.text);

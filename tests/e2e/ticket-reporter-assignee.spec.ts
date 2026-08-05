@@ -1,4 +1,4 @@
-import { expect, browser, $ } from '@wdio/globals'
+import { browser, $ } from '@wdio/globals'
 
 describe('Ticket Reporter and Assignee Tests', () => {
     it('Should be able to set and view reporter and assignee for a ticket', async () => {
