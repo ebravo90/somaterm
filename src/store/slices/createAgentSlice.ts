@@ -292,7 +292,7 @@ export const createAgentSlice: StateCreator<AppState, [], [], AgentSlice> = (set
         if (event.payload.isDone) {
           unlisten();
         } else {
-          get().appendMessageChunkToActiveSession(event.payload.text);
+          get().appendMessageChunkToActiveSession(event.payload.text || "");
         }
       });
 

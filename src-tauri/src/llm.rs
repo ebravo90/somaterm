@@ -136,13 +136,22 @@ pub async fn stream_llm_response(
     }
 
     let mut stream = response.bytes_stream();
+    let mut buffer = String::new();
 
     while let Some(chunk_result) = stream.next().await {
         match chunk_result {
             Ok(bytes) => {
-                let text = String::from_utf8_lossy(&bytes).to_string();
+                let chunk_text = String::from_utf8_lossy(&bytes).to_string();
+                buffer.push_str(&chunk_text);
                 
-                let lines: Vec<&str> = text.split('\n').collect();
+                let mut lines: Vec<&str> = buffer.split('\n').collect();
+                
+                let incomplete = if !buffer.ends_with('\n') {
+                    lines.pop().unwrap_or("").to_string()
+                } else {
+                    String::new()
+                };
+
                 for mut line in lines {
                     line = line.trim();
                     if line.is_empty() {
@@ -155,38 +164,45 @@ pub async fn stream_llm_response(
                         continue;
                     }
 
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-                        let mut content = String::new();
-                        // Ollama /api/generate format
-                        if let Some(r) = json.get("response").and_then(|v| v.as_str()) {
-                            content = r.to_string();
-                        }
-                        // Ollama /api/chat format
-                        else if let Some(msg) = json.get("message") {
-                            if let Some(c) = msg.get("content").and_then(|v| v.as_str()) {
-                                content = c.to_string();
+                    match serde_json::from_str::<serde_json::Value>(line) {
+                        Ok(json) => {
+                            let mut content = String::new();
+                            // Ollama /api/generate format
+                            if let Some(r) = json.get("response").and_then(|v| v.as_str()) {
+                                content = r.to_string();
                             }
-                        }
-                        // OpenAI format
-                        else if let Some(choices) = json.get("choices").and_then(|v| v.as_array()) {
-                            if let Some(first) = choices.get(0) {
-                                if let Some(delta) = first.get("delta") {
-                                    if let Some(c) = delta.get("content").and_then(|v| v.as_str()) {
-                                        content = c.to_string();
+                            // Ollama /api/chat format
+                            else if let Some(msg) = json.get("message") {
+                                if let Some(c) = msg.get("content").and_then(|v| v.as_str()) {
+                                    content = c.to_string();
+                                }
+                            }
+                            // OpenAI format
+                            else if let Some(choices) = json.get("choices").and_then(|v| v.as_array()) {
+                                if let Some(first) = choices.get(0) {
+                                    if let Some(delta) = first.get("delta") {
+                                        if let Some(c) = delta.get("content").and_then(|v| v.as_str()) {
+                                            content = c.to_string();
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if !content.is_empty() {
-                            let _ = app_handle.emit("llm-stream-chunk", StreamChunk {
-                                session_id: payload.session_id.clone(),
-                                text: content,
-                                is_done: false,
-                            });
+                            if !content.is_empty() {
+                                let _ = app_handle.emit("llm-stream-chunk", StreamChunk {
+                                    session_id: payload.session_id.clone(),
+                                    text: content,
+                                    is_done: false,
+                                });
+                            }
+                        },
+                        Err(e) => {
+                            eprintln!("Failed to parse chunk: {}. Error: {}", line, e);
                         }
                     }
                 }
+                
+                buffer = incomplete;
             }
             Err(e) => {
                 println!("Error reading stream chunk: {}", e);
